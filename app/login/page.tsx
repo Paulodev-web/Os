@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, Suspense, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { btnPrimary, inputCls, labelCls } from "@/components/ui";
 
 function LoginForm() {
   const router = useRouter();
@@ -29,7 +31,7 @@ function LoginForm() {
       }
 
       const from = searchParams.get("from");
-      router.push(from && from.startsWith("/") ? from : "/");
+      router.push(from && from.startsWith("/") ? from : "/hoje");
       router.refresh();
     } catch {
       setError("Erro de conexão. Tente novamente.");
@@ -39,23 +41,29 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
+        <div className="mb-8 flex flex-col items-center">
+          <Image
+            src="/logo/devpaulo.png"
+            alt="devpaulo"
+            width={72}
+            height={72}
+            priority
+          />
+          <h1 className="mt-3 text-xl font-black tracking-tight">
             OS Pessoal
           </h1>
-          <p className="mt-1 text-sm text-zinc-400">painel.devpaulo.com.br</p>
+          <p className="mt-0.5 text-sm font-light text-muted">
+            painel.devpaulo.com.br
+          </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-lg"
+          className="rounded-xl border border-border bg-surface p-6 shadow-card"
         >
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-zinc-300"
-          >
+          <label htmlFor="password" className={labelCls}>
             Senha
           </label>
           <input
@@ -65,11 +73,11 @@ function LoginForm() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-zinc-400"
+            className={inputCls}
           />
 
           {error && (
-            <p role="alert" className="mt-3 text-sm text-red-400">
+            <p role="alert" className="mt-3 text-sm font-semibold text-danger">
               {error}
             </p>
           )}
@@ -77,7 +85,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading || password.length === 0}
-            className="mt-5 w-full rounded-lg bg-zinc-100 py-2 text-sm font-medium text-zinc-900 transition hover:bg-white disabled:opacity-50"
+            className={`${btnPrimary} mt-5 w-full`}
           >
             {loading ? "Entrando…" : "Entrar"}
           </button>

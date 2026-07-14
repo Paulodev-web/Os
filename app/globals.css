@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================
+   Design tokens — identidade devpaulo (brand.md)
+   Proporção 70/22/8: off-white domina · graphite dá ritmo ·
+   verde SÓ como acento (CTAs, links, badges — nunca fundo de seção)
+   ============================================================ */
+@theme {
+  /* Papéis semânticos */
+  --color-background: #f8fafc; /* off-white — fundo padrão */
+  --color-surface: #ffffff; /* cards e superfícies */
+  --color-foreground: #0f172a; /* ink — texto principal */
+  --color-muted: #64748b; /* texto secundário */
+  --color-border: #e2e8f0; /* bordas e divisores */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-primary: #01603b; /* brand-green — acento */
+  --color-primary-dark: #014a2d; /* hover/pressed */
+  --color-primary-soft: #d7ebe0; /* badges, fundos suaves */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-graphite: #141414; /* sidebar, hero, conversão */
+  --color-graphite-soft: #1f1f1f; /* superfícies sobre graphite */
+
+  /* Funcionais (status) — fora da paleta de marca, uso pontual */
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-warn: #b45309;
+  --color-warn-soft: #fef3c7;
+  --color-info: #1d4ed8;
+  --color-info-soft: #dbeafe;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-pop: 0 4px 16px -2px rgb(15 23 42 / 0.08);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-primary-soft);
 }
