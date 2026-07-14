@@ -4,10 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { claudeJSON, SYSTEM_DEVPAULO } from "@/lib/claude";
+import {
+  contextoDaEntidade,
+  descreveReuniao,
+  gerarPrepReuniao,
+} from "@/lib/prep";
 import { todayISO } from "@/lib/format";
 import type {
   Meeting,
-  MeetingPrep,
   StructuredNotes,
   TaskCategory,
 } from "@/lib/database.types";
@@ -89,100 +93,7 @@ export async function saveRawNotes(formData: FormData) {
   revalidatePath(`/reunioes/${id}`);
 }
 
-/* ===== Contexto compartilhado das ações de IA ===== */
-
-type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
-
-async function contextoDaEntidade(
-  supabase: SupabaseServer,
-  meeting: Meeting
-): Promise<string> {
-  const { related_entity_type: type, related_entity_id: id } = meeting;
-  if (!type || !id) return "Reunião sem vínculo com projeto, lead ou cliente.";
-
-  if (type === "project") {
-    const { data: p } = await supabase
-      .from("projects")
-      .select("name, status, description, clients(name, segment, notes)")
-      .eq("id", id)
-      .maybeSingle();
-    if (!p) return "Projeto vinculado não encontrado.";
-    const proj = p as unknown as {
-      name: string;
-      status: string;
-      description: string | null;
-      clients: { name: string; segment: string | null; notes: string | null };
-    };
-    const { data: marcos } = await supabase
-      .from("project_milestones")
-      .select("title, published")
-      .eq("project_id", id)
-      .order("created_at", { ascending: false })
-      .limit(8);
-    const marcosTxt = (marcos ?? [])
-      .map((m) => `  - ${m.title} (${m.published ? "publicado" : "rascunho"})`)
-      .join("\n");
-    return [
-      `PROJETO VINCULADO: ${proj.name} (status: ${proj.status})`,
-      proj.description ? `Descrição: ${proj.description}` : null,
-      `Cliente: ${proj.clients.name}${proj.clients.segment ? ` — ${proj.clients.segment}` : ""}`,
-      proj.clients.notes ? `Notas do cliente: ${proj.clients.notes}` : null,
-      marcosTxt ? `Marcos recentes:\n${marcosTxt}` : "Sem marcos ainda.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  if (type === "lead") {
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("name, segment, stage, next_action, next_action_date, notes")
-      .eq("id", id)
-      .maybeSingle();
-    if (!lead) return "Lead vinculado não encontrado.";
-    return [
-      `LEAD VINCULADO: ${lead.name}${lead.segment ? ` — ${lead.segment}` : ""}`,
-      `Etapa do funil: ${lead.stage}`,
-      lead.next_action
-        ? `Próxima ação combinada: ${lead.next_action}${lead.next_action_date ? ` (${lead.next_action_date})` : ""}`
-        : null,
-      lead.notes ? `Notas: ${lead.notes}` : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  // client
-  const { data: cli } = await supabase
-    .from("clients")
-    .select("name, segment, notes")
-    .eq("id", id)
-    .maybeSingle();
-  if (!cli) return "Cliente vinculado não encontrado.";
-  const { data: projs } = await supabase
-    .from("projects")
-    .select("name, status")
-    .eq("client_id", id);
-  return [
-    `CLIENTE VINCULADO: ${cli.name}${cli.segment ? ` — ${cli.segment}` : ""}`,
-    cli.notes ? `Notas: ${cli.notes}` : null,
-    (projs ?? []).length
-      ? `Projetos: ${(projs ?? []).map((p) => `${p.name} (${p.status})`).join(", ")}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-function descreveReuniao(meeting: Meeting): string {
-  return [
-    `Título: ${meeting.title}`,
-    `Tipo: ${meeting.type}`,
-    `Data/hora: ${meeting.scheduled_at}`,
-  ].join("\n");
-}
-
-/* ===== Gerar prep (estado 2) ===== */
+/* ===== Gerar prep (estado 2) — lógica em lib/prep.ts ===== */
 
 export async function gerarPrep(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -199,44 +110,7 @@ export async function gerarPrep(formData: FormData) {
 
   let erro: string | null = null;
   try {
-    const contexto = await contextoDaEntidade(supabase, meeting);
-    const prep = await claudeJSON<MeetingPrep>({
-      system: SYSTEM_DEVPAULO,
-      maxTokens: 1500,
-      prompt: `Hoje é ${todayISO()}. Prepare o Paulo para a reunião abaixo.
-
-REUNIÃO:
-${descreveReuniao(meeting)}
-
-CONTEXTO:
-${contexto}
-
-Responda APENAS com JSON neste formato exato (sem markdown):
-{
-  "objetivo": "o objetivo da reunião em uma frase",
-  "contexto": ["3 a 5 pontos que o Paulo precisa ter na cabeça"],
-  "perguntas": ["3 a 6 perguntas estratégicas para fazer"],
-  "alertas": ["riscos ou pontos de atenção; lista vazia se nenhum"]
-}
-
-Regras:
-- Posicionamento devpaulo: diagnóstico primeiro, médias empresas, sem buzzwords.
-- Perguntas devem destravar decisão ou revelar o problema real, não preencher pauta.`,
-    });
-
-    if (
-      typeof prep?.objetivo !== "string" ||
-      !Array.isArray(prep.contexto) ||
-      !Array.isArray(prep.perguntas) ||
-      !Array.isArray(prep.alertas)
-    ) {
-      throw new Error("A IA devolveu um prep em formato inesperado.");
-    }
-
-    await supabase
-      .from("meetings")
-      .update({ prep, prep_generated_at: new Date().toISOString() })
-      .eq("id", id);
+    await gerarPrepReuniao(supabase, meeting);
   } catch (e) {
     erro = e instanceof Error ? e.message : "Falha ao gerar o prep.";
   }

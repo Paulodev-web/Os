@@ -24,7 +24,11 @@ import {
 import { SPACE_LABEL, MEETING_TYPE_LABEL } from "@/lib/labels";
 import { dateBR, todayISO } from "@/lib/format";
 import { toggleTask } from "../tarefas/actions";
-import { gerarBriefingAgora, updateAlertStatus } from "./actions";
+import {
+  capturaRapida,
+  gerarBriefingAgora,
+  updateAlertStatus,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +135,22 @@ export default async function HojePage({
           {erro}
         </div>
       )}
+
+      {/* Captura rápida */}
+      <form action={capturaRapida} className="mb-6 flex items-center gap-2">
+        <input
+          name="texto"
+          required
+          placeholder="Capturar qualquer coisa… (ex: cobrar orçamento da Godoy até sexta)"
+          className="flex-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm shadow-card outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted/60"
+        />
+        <button
+          type="submit"
+          className="flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary-dark"
+        >
+          <Sparkles size={15} /> Capturar
+        </button>
+      </form>
 
       {/* Briefing do dia */}
       {briefing ? (
