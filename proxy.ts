@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // Rotas acessíveis sem sessão.
-// /c/[slug] é o futuro portal público do cliente (Fase 2) — nunca exige login.
-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
+// /c/[token] é o portal público do cliente — nunca exige login.
+// /api/cron/* valida CRON_SECRET dentro do próprio handler.
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/cron"];
 
 function isPublic(pathname: string): boolean {
   return (
