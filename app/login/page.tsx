@@ -31,7 +31,9 @@ function LoginForm() {
       }
 
       const from = searchParams.get("from");
-      router.push(from && from.startsWith("/") ? from : "/hoje");
+      // só caminho interno: "//host" é URL protocolo-relativa (open redirect)
+      const seguro = from && from.startsWith("/") && !from.startsWith("//");
+      router.push(seguro ? from : "/hoje");
       router.refresh();
     } catch {
       setError("Erro de conexão. Tente novamente.");

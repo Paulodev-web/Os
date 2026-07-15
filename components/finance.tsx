@@ -183,7 +183,7 @@ export function EntryForm({
           </datalist>
         </div>
         <div
-          className={`col-span-2 ${origins.length > 1 ? "md:col-span-3" : "md:col-span-4"}`}
+          className={`col-span-2 ${origins.length > 1 ? "md:col-span-2" : "md:col-span-4"}`}
         >
           <label className={labelCls} htmlFor="fe-desc">
             Descrição
@@ -208,7 +208,7 @@ export function EntryForm({
             className={inputCls}
           />
         </div>
-        <div className={origins.length > 1 ? "md:col-span-2" : "md:col-span-2"}>
+        <div className="md:col-span-2">
           <label className={labelCls} htmlFor="fe-date">
             Data
           </label>
@@ -220,9 +220,7 @@ export function EntryForm({
             className={inputCls}
           />
         </div>
-        <div
-          className={`col-span-2 flex items-end ${origins.length > 1 ? "md:col-span-11 md:justify-end" : "md:col-span-12 md:justify-end"}`}
-        >
+        <div className="col-span-2 flex items-end md:col-span-12 md:justify-end">
           <button type="submit" className={btnPrimary}>
             <Plus size={16} /> Lançar
           </button>

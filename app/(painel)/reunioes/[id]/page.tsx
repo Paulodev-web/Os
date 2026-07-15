@@ -31,6 +31,7 @@ import {
   gerarPrep,
   estruturarReuniao,
   criarMarcoSugerido,
+  saveRawNotes,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -304,9 +305,16 @@ export default async function ReuniaoPage({
             <button type="submit" disabled={!iaOn} className={btnPrimary}>
               <Sparkles size={15} /> Estruturar com IA
             </button>
+            <button
+              type="submit"
+              formAction={saveRawNotes}
+              className={btnSecondary}
+            >
+              Salvar anotações
+            </button>
             <span className="text-xs text-muted">
-              Gera ata (resumo, decisões, próximos passos), cria tarefas e
-              marca a reunião como realizada.
+              Estruturar gera a ata (resumo, decisões, próximos passos), cria
+              tarefas e marca a reunião como realizada.
             </span>
           </div>
         </form>

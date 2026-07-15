@@ -65,13 +65,15 @@ export default async function ReunioesPage() {
   const leads = (leadsData ?? []) as { id: string; name: string }[];
   const clients = (clientsData ?? []) as { id: string; name: string }[];
 
-  const agora = new Date().toISOString();
+  // compara por época — formatos de ISO do PostgREST (+00:00) e do JS (Z)
+  // não são comparáveis como string
+  const agora = Date.now();
+  const ehProxima = (m: Meeting) =>
+    m.status === "agendada" && new Date(m.scheduled_at).getTime() >= agora;
   const proximas = meetings
-    .filter((m) => m.status === "agendada" && m.scheduled_at >= agora)
+    .filter(ehProxima)
     .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
-  const passadas = meetings.filter(
-    (m) => !(m.status === "agendada" && m.scheduled_at >= agora)
-  );
+  const passadas = meetings.filter((m) => !ehProxima(m));
 
   const devpauloSpace = spaces.find((s) => s.slug === "devpaulo");
 
