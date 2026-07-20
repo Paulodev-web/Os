@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 // Rotas acessíveis sem sessão.
 // /c/[token] é o portal público do cliente — nunca exige login.
+// /agendar/[slug] é o agendamento público (substitui o ReuniCheck) — idem.
 // /api/cron/* valida CRON_SECRET dentro do próprio handler.
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/cron"];
 
@@ -10,7 +11,9 @@ function isPublic(pathname: string): boolean {
   return (
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     pathname === "/c" ||
-    pathname.startsWith("/c/")
+    pathname.startsWith("/c/") ||
+    pathname === "/agendar" ||
+    pathname.startsWith("/agendar/")
   );
 }
 

@@ -151,6 +151,12 @@ export default async function ReuniaoPage({
                 </Badge>
               </Link>
             )}
+            {meeting.source === "os_pessoal" && meeting.client_name && (
+              <Badge tone="info">
+                agendado por {meeting.client_name}
+                {meeting.client_contact ? ` · ${meeting.client_contact}` : ""}
+              </Badge>
+            )}
           </span>
         }
         action={

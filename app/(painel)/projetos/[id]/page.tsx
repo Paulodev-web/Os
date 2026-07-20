@@ -8,6 +8,7 @@ import {
   Paperclip,
   ExternalLink,
   ArrowLeft,
+  AlertTriangle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -44,10 +45,13 @@ export const dynamic = "force-dynamic";
 
 export default async function ProjetoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ erro?: string }>;
 }) {
   const { id } = await params;
+  const { erro } = await searchParams;
   const supabase = await createClient();
 
   const { data: projectData } = await supabase
@@ -89,6 +93,13 @@ export default async function ProjetoPage({
       >
         <ArrowLeft size={14} /> {project.clients.name}
       </Link>
+
+      {erro && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          {erro}
+        </div>
+      )}
 
       <PageHeader
         title={project.name}

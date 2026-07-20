@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PORTAL_BUCKET } from "@/lib/storage";
 
@@ -11,8 +12,12 @@ export async function updateProjectStatus(formData: FormData) {
   if (!id || !status) return;
 
   const supabase = await createClient();
-  await supabase.from("projects").update({ status }).eq("id", id);
+  const { error } = await supabase
+    .from("projects")
+    .update({ status })
+    .eq("id", id);
   revalidatePath(`/projetos/${id}`);
+  if (error) redirect(`/projetos/${id}?erro=${encodeURIComponent(error.message)}`);
 }
 
 export async function createMilestone(formData: FormData) {
@@ -22,12 +27,13 @@ export async function createMilestone(formData: FormData) {
   if (!projectId || !title) return;
 
   const supabase = await createClient();
-  await supabase.from("project_milestones").insert({
+  const { error } = await supabase.from("project_milestones").insert({
     project_id: projectId,
     title,
     description: description || null,
   });
   revalidatePath(`/projetos/${projectId}`);
+  if (error) redirect(`/projetos/${projectId}?erro=${encodeURIComponent(error.message)}`);
 }
 
 export async function setMilestonePublished(formData: FormData) {
@@ -37,7 +43,7 @@ export async function setMilestonePublished(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("project_milestones")
     .update({
       published: publish,
@@ -45,6 +51,7 @@ export async function setMilestonePublished(formData: FormData) {
     })
     .eq("id", id);
   revalidatePath(`/projetos/${projectId}`);
+  if (error) redirect(`/projetos/${projectId}?erro=${encodeURIComponent(error.message)}`);
 }
 
 export async function deleteMilestone(formData: FormData) {
@@ -53,8 +60,12 @@ export async function deleteMilestone(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase.from("project_milestones").delete().eq("id", id);
+  const { error } = await supabase
+    .from("project_milestones")
+    .delete()
+    .eq("id", id);
   revalidatePath(`/projetos/${projectId}`);
+  if (error) redirect(`/projetos/${projectId}?erro=${encodeURIComponent(error.message)}`);
 }
 
 const IMAGE_TYPES = /^image\//;
@@ -85,8 +96,9 @@ export async function addAsset(formData: FormData) {
         upsert: false,
       });
     if (upErr) {
-      console.error("Erro no upload:", upErr.message);
-      return;
+      redirect(
+        `/projetos/${projectId}?erro=${encodeURIComponent(`Falha no upload: ${upErr.message}`)}`
+      );
     }
 
     type = IMAGE_TYPES.test(file.type)
@@ -98,7 +110,7 @@ export async function addAsset(formData: FormData) {
     return; // nada pra anexar
   }
 
-  await supabase.from("project_assets").insert({
+  const { error: insErr } = await supabase.from("project_assets").insert({
     project_id: projectId,
     milestone_id: milestoneId || null,
     type,
@@ -107,6 +119,7 @@ export async function addAsset(formData: FormData) {
     external_url: externalUrl || null,
   });
   revalidatePath(`/projetos/${projectId}`);
+  if (insErr) redirect(`/projetos/${projectId}?erro=${encodeURIComponent(insErr.message)}`);
 }
 
 export async function deleteAsset(formData: FormData) {
@@ -124,6 +137,7 @@ export async function deleteAsset(formData: FormData) {
   if (data?.storage_path) {
     await supabase.storage.from(PORTAL_BUCKET).remove([data.storage_path]);
   }
-  await supabase.from("project_assets").delete().eq("id", id);
+  const { error } = await supabase.from("project_assets").delete().eq("id", id);
   revalidatePath(`/projetos/${projectId}`);
+  if (error) redirect(`/projetos/${projectId}?erro=${encodeURIComponent(error.message)}`);
 }

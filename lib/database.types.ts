@@ -96,6 +96,7 @@ export type MeetingType =
   | "interna"
   | "outro";
 export type MeetingStatus = "agendada" | "realizada" | "cancelada";
+export type MeetingSource = "manual" | "reunicheck" | "ia" | "os_pessoal";
 
 export interface Meeting {
   id: string;
@@ -104,15 +105,48 @@ export interface Meeting {
   type: MeetingType;
   scheduled_at: string;
   status: MeetingStatus;
-  source: "manual" | "reunicheck";
+  source: MeetingSource;
   related_entity_type: "project" | "lead" | "client" | null;
   related_entity_id: string | null;
+  booking_link_id: string | null;
+  client_name: string | null;
+  client_contact: string | null;
+  duration_minutes: number | null;
   prep: MeetingPrep | null;
   prep_generated_at: string | null;
   raw_notes: string | null;
   structured_notes: StructuredNotes | null;
   created_at: string;
   updated_at: string;
+}
+
+// ===== Agendamento nativo (substitui o ReuniCheck) =====
+export interface BookingSlotDay {
+  date: string;
+  times: string[];
+}
+
+export interface BookingLink {
+  id: string;
+  slug: string;
+  space_id: string;
+  title: string;
+  description: string | null;
+  duration_minutes: number;
+  meeting_type: MeetingType;
+  slots: BookingSlotDay[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookingBlock {
+  id: string;
+  title: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  created_at: string;
 }
 
 export interface MeetingPrep {

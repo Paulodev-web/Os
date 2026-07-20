@@ -1,4 +1,4 @@
-import { Plus, Check, Trash2, Pencil, FileText } from "lucide-react";
+import { Plus, Check, Trash2, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Lead, LeadStage, Proposal } from "@/lib/database.types";
 import {
@@ -13,12 +13,14 @@ import {
   btnSecondary,
 } from "@/components/ui";
 import { LEAD_STAGE_LABEL } from "@/lib/labels";
-import { brl, dateBR, isOverdue } from "@/lib/format";
+import { brl, dateBR } from "@/lib/format";
+import {
+  LeadCard,
+  PROPOSAL_STATUS_LABEL,
+  PROPOSAL_TONE,
+} from "@/components/comercial/lead-card";
 import {
   createLead,
-  moveLeadStage,
-  updateLead,
-  deleteLead,
   createProposal,
   updateProposalStatus,
   deleteProposal,
@@ -34,113 +36,6 @@ const STAGES: LeadStage[] = [
   "fechado",
   "perdido",
 ];
-
-const PROPOSAL_STATUS_LABEL: Record<string, string> = {
-  rascunho: "Rascunho",
-  enviada: "Enviada",
-  aceita: "Aceita",
-  recusada: "Recusada",
-};
-
-const PROPOSAL_TONE = {
-  rascunho: "neutral",
-  enviada: "info",
-  aceita: "green",
-  recusada: "danger",
-} as const;
-
-function LeadCard({ lead }: { lead: Lead }) {
-  const overdue = isOverdue(lead.next_action_date);
-  return (
-    <Card className="p-3">
-      <p className="font-semibold leading-snug">{lead.name}</p>
-      {lead.segment && <p className="text-xs text-muted">{lead.segment}</p>}
-
-      {lead.next_action && (
-        <p
-          className={`mt-2 text-xs leading-snug ${overdue ? "font-semibold text-danger" : "text-muted"}`}
-        >
-          → {lead.next_action}
-          {lead.next_action_date && (
-            <span className="ml-1 whitespace-nowrap">
-              ({overdue ? "atrasado · " : ""}
-              {dateBR(lead.next_action_date)})
-            </span>
-          )}
-        </p>
-      )}
-
-      {/* mover de estágio */}
-      <form action={moveLeadStage} className="mt-3 flex items-center gap-1.5">
-        <input type="hidden" name="id" value={lead.id} />
-        <select
-          name="stage"
-          defaultValue={lead.stage}
-          className={`${inputCls} !px-2 !py-1 !text-xs`}
-        >
-          {STAGES.map((s) => (
-            <option key={s} value={s}>
-              {LEAD_STAGE_LABEL[s]}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          aria-label="Mover de estágio"
-          className="flex h-7 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white transition hover:bg-primary-dark"
-        >
-          <Check size={14} />
-        </button>
-      </form>
-
-      {/* editar próxima ação / notas */}
-      <details className="mt-2">
-        <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-primary">
-          <Pencil size={11} className="mr-1 inline" />
-          editar
-        </summary>
-        <form action={updateLead} className="mt-2 space-y-2">
-          <input type="hidden" name="id" value={lead.id} />
-          <input
-            name="next_action"
-            defaultValue={lead.next_action ?? ""}
-            placeholder="Próxima ação"
-            className={`${inputCls} !px-2 !py-1 !text-xs`}
-          />
-          <input
-            name="next_action_date"
-            type="date"
-            defaultValue={lead.next_action_date ?? ""}
-            className={`${inputCls} !px-2 !py-1 !text-xs`}
-          />
-          <textarea
-            name="notes"
-            rows={2}
-            defaultValue={lead.notes ?? ""}
-            placeholder="Notas"
-            className={`${inputCls} !px-2 !py-1 !text-xs`}
-          />
-          <div className="flex items-center justify-between">
-            <button
-              type="submit"
-              className="rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-white hover:bg-primary-dark"
-            >
-              Salvar
-            </button>
-            <button
-              type="submit"
-              formAction={deleteLead}
-              aria-label="Excluir lead"
-              className="rounded-lg p-1 text-muted/50 hover:bg-danger-soft hover:text-danger"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </form>
-      </details>
-    </Card>
-  );
-}
 
 export default async function ComercialPage() {
   const supabase = await createClient();
@@ -167,6 +62,17 @@ export default async function ComercialPage() {
 
   const byStage = new Map<LeadStage, Lead[]>(STAGES.map((s) => [s, []]));
   for (const l of leads) byStage.get(l.stage)?.push(l);
+
+  // proposta vinculada a um lead aparece dentro do card do lead, não numa lista solta
+  const proposalsByLead = new Map<string, Proposal[]>();
+  const unlinkedProposals: typeof proposals = [];
+  for (const p of proposals) {
+    if (p.lead_id) {
+      proposalsByLead.set(p.lead_id, [...(proposalsByLead.get(p.lead_id) ?? []), p]);
+    } else {
+      unlinkedProposals.push(p);
+    }
+  }
 
   const pipelineValue = proposals
     .filter((p) => p.status === "enviada")
@@ -261,55 +167,57 @@ export default async function ComercialPage() {
         </form>
       </Card>
 
-      {/* Kanban */}
+      {/* Kanban — grid responsivo, sem scroll horizontal (colunas sempre visíveis) */}
       {leads.length === 0 ? (
         <EmptyState
           title="Pipeline vazio"
           hint="Adicione o primeiro lead no formulário acima."
         />
       ) : (
-        <div className="-mx-1 overflow-x-auto pb-2">
-          <div className="flex min-w-max gap-3 px-1">
-            {STAGES.map((stage) => {
-              const col = byStage.get(stage) ?? [];
-              const dimmed = stage === "fechado" || stage === "perdido";
-              return (
-                <div
-                  key={stage}
-                  className={`w-60 shrink-0 rounded-xl p-2 ${dimmed ? "bg-background" : "bg-graphite-soft/5"} border border-border/70`}
-                >
-                  <div className="mb-2 flex items-center justify-between px-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                      {LEAD_STAGE_LABEL[stage]}
-                    </p>
-                    <Badge
-                      tone={
-                        stage === "fechado"
-                          ? "green"
-                          : stage === "perdido"
-                            ? "danger"
-                            : "neutral"
-                      }
-                    >
-                      {col.length}
-                    </Badge>
-                  </div>
-                  <div className={`space-y-2 ${dimmed ? "opacity-70" : ""}`}>
-                    {col.map((lead) => (
-                      <LeadCard key={lead.id} lead={lead} />
-                    ))}
-                  </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {STAGES.map((stage) => {
+            const col = byStage.get(stage) ?? [];
+            const dimmed = stage === "fechado" || stage === "perdido";
+            return (
+              <div
+                key={stage}
+                className={`rounded-xl p-2 ${dimmed ? "bg-background" : "bg-graphite-soft/5"} border border-border/70`}
+              >
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    {LEAD_STAGE_LABEL[stage]}
+                  </p>
+                  <Badge
+                    tone={
+                      stage === "fechado"
+                        ? "green"
+                        : stage === "perdido"
+                          ? "danger"
+                          : "neutral"
+                    }
+                  >
+                    {col.length}
+                  </Badge>
                 </div>
-              );
-            })}
-          </div>
+                <div className={`space-y-2 ${dimmed ? "opacity-70" : ""}`}>
+                  {col.map((lead) => (
+                    <LeadCard
+                      key={lead.id}
+                      lead={lead}
+                      proposals={proposalsByLead.get(lead.id) ?? []}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Propostas */}
+      {/* Propostas sem lead vinculado — as demais aparecem dentro do card do lead, acima */}
       <section className="mt-10">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
-          <FileText size={15} className="text-primary" /> Propostas
+          <FileText size={15} className="text-primary" /> Propostas sem lead
         </h2>
 
         <Card className="mb-4 p-4">
@@ -380,11 +288,11 @@ export default async function ComercialPage() {
           </form>
         </Card>
 
-        {proposals.length === 0 ? (
-          <EmptyState title="Nenhuma proposta registrada" />
+        {unlinkedProposals.length === 0 ? (
+          <EmptyState title="Nenhuma proposta sem lead vinculado" />
         ) : (
           <ul className="space-y-2">
-            {proposals.map((p) => (
+            {unlinkedProposals.map((p) => (
               <li key={p.id}>
                 <Card className="flex flex-wrap items-center gap-3 p-4">
                   <div className="min-w-0 flex-1">

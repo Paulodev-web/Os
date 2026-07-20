@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Sparkles, FileText, CalendarClock } from "lucide-react";
+import { Plus, Sparkles, FileText, CalendarClock, Link2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Meeting, Space } from "@/lib/database.types";
 import {
@@ -118,6 +118,14 @@ export default async function ReunioesPage() {
       <PageHeader
         title="Reuniões"
         subtitle={`${proximas.length} agendada${proximas.length === 1 ? "" : "s"} · prep e ata ficam SÓ aqui — cliente nunca vê`}
+        action={
+          <Link
+            href="/reunioes/agendamento"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+          >
+            <Link2 size={14} /> Gerenciar links de agendamento
+          </Link>
+        }
       />
 
       {/* Nova reunião */}

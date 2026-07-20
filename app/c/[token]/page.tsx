@@ -115,16 +115,22 @@ export default async function PortalPage({
     <main className="min-h-screen bg-background">
       {/* Header claro com logo verde (regra da marca) */}
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-5">
           <Image
             src="/logo/devpaulo.png"
             alt="devpaulo"
-            width={52}
-            height={52}
+            width={40}
+            height={40}
           />
-          <span className="text-sm font-light text-muted">
-            Acompanhamento de projeto
-          </span>
+          <div>
+            <span className="flex items-baseline gap-1 text-lg font-black tracking-tight">
+              devpaulo
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            </span>
+            <p className="text-xs font-light text-muted">
+              Acompanhamento de projeto
+            </p>
+          </div>
         </div>
       </header>
 
