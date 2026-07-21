@@ -8,83 +8,25 @@ import {
   type DragEvent,
   type FormEvent,
 } from "react";
-import { useFormStatus } from "react-dom";
-import { Upload, X, ImagePlus, Loader } from "lucide-react";
-import { inputCls, labelCls, btnSecondary } from "@/components/ui";
-
-const MAX_DIMENSION = 1920;
-const JPEG_QUALITY = 0.82;
-
-interface PendingFile {
-  id: string;
-  file: File;
-  previewUrl: string;
-}
-
-/** Redimensiona/recomprime imagens no navegador antes do upload — uploads mais
- * rápidos e confiáveis, sem esbarrar no limite de tamanho do Server Action. */
-async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
-    return file;
-  }
-  const bitmap = await createImageBitmap(file).catch(() => null);
-  if (!bitmap) return file;
-
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
-  const width = Math.round(bitmap.width * scale);
-  const height = Math.round(bitmap.height * scale);
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return file;
-  ctx.drawImage(bitmap, 0, 0, width, height);
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY)
-  );
-  if (!blob || blob.size >= file.size) return file;
-
-  const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
-  return new File([blob], newName, { type: "image/jpeg" });
-}
-
-function ResetOnComplete({ onDone }: { onDone: () => void }) {
-  const { pending } = useFormStatus();
-  const wasPending = useRef(false);
-  useEffect(() => {
-    if (wasPending.current && !pending) onDone();
-    wasPending.current = pending;
-  }, [pending, onDone]);
-  return null;
-}
-
-function SubmitButton({ count }: { count: number }) {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className={`${btnSecondary} w-full`}
-    >
-      {pending ? (
-        <Loader size={15} className="animate-spin" />
-      ) : (
-        <ImagePlus size={15} />
-      )}
-      {pending ? "Enviando…" : `Anexar${count ? ` (${count})` : ""}`}
-    </button>
-  );
-}
+import { Upload, X } from "lucide-react";
+import { inputCls, labelCls } from "@/components/ui";
+import {
+  compressImage,
+  ResetOnComplete,
+  SubmitButton,
+  type PendingFile,
+} from "./upload-shared";
 
 export function MultiFileUpload({
   action,
   projectId,
-  milestones,
+  fixedMilestoneId,
 }: {
   action: (formData: FormData) => void;
   projectId: string;
-  milestones: { id: string; title: string }[];
+  /** Quando presente, anexa direto a esse marco (sem select). Quando ausente,
+   * vira entregável do projeto (sem marco). */
+  fixedMilestoneId?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -155,6 +97,9 @@ export function MultiFileUpload({
     >
       <ResetOnComplete onDone={() => setPending([])} />
       <input type="hidden" name="project_id" value={projectId} />
+      {fixedMilestoneId && (
+        <input type="hidden" name="milestone_id" value={fixedMilestoneId} />
+      )}
 
       <div
         onDragOver={(e) => {
@@ -223,7 +168,7 @@ export function MultiFileUpload({
       )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
-        <div className="md:col-span-4">
+        <div className="md:col-span-5">
           <label className={labelCls} htmlFor="as-url">
             …ou link externo
           </label>
@@ -235,7 +180,7 @@ export function MultiFileUpload({
             className={inputCls}
           />
         </div>
-        <div className="md:col-span-3">
+        <div className="md:col-span-5">
           <label className={labelCls} htmlFor="as-title">
             Título
           </label>
@@ -245,19 +190,6 @@ export function MultiFileUpload({
             placeholder="opcional"
             className={inputCls}
           />
-        </div>
-        <div className="md:col-span-3">
-          <label className={labelCls} htmlFor="as-milestone">
-            Marco
-          </label>
-          <select id="as-milestone" name="milestone_id" className={inputCls}>
-            <option value="">— entregável do projeto (aparece em Arquivos)</option>
-            {milestones.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.title}
-              </option>
-            ))}
-          </select>
         </div>
         <div className="flex items-end md:col-span-2">
           <SubmitButton count={pending.length} />
