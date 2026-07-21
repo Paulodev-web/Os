@@ -29,7 +29,9 @@ import {
   btnGhost,
 } from "@/components/ui";
 import { CopyPortalLink } from "@/components/copy-link";
+import { MultiFileUpload } from "@/components/upload/multi-file-upload";
 import { PROJECT_STATUS_LABEL } from "@/lib/labels";
+import { PROJECT_PHASES, PHASE_LABEL } from "@/lib/phases";
 import { dateTimeBR } from "@/lib/format";
 import { publicAssetUrl } from "@/lib/storage";
 import {
@@ -38,6 +40,7 @@ import {
   deleteAsset,
   deleteMilestone,
   setMilestonePublished,
+  updateProjectPortalSettings,
   updateProjectStatus,
 } from "../actions";
 
@@ -134,6 +137,101 @@ export default async function ProjetoPage({
         }
       />
 
+      {/* Configurações do portal */}
+      <Card className="mb-6 p-4">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+          Configurações do portal
+        </h2>
+        <form action={updateProjectPortalSettings} className="space-y-4">
+          <input type="hidden" name="id" value={project.id} />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+            <div className="md:col-span-6">
+              <label className={labelCls} htmlFor="ps-phase">
+                Fase atual
+              </label>
+              <select
+                id="ps-phase"
+                name="current_phase"
+                defaultValue={project.current_phase ?? ""}
+                className={inputCls}
+              >
+                <option value="">— não iniciado</option>
+                {PROJECT_PHASES.map((p) => (
+                  <option key={p.key} value={p.key}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-6">
+              <label className={labelCls} htmlFor="ps-phase-date">
+                Previsão de entrega da fase atual
+              </label>
+              <input
+                id="ps-phase-date"
+                name="current_phase_target_date"
+                type="date"
+                defaultValue={project.current_phase_target_date ?? ""}
+                className={inputCls}
+              />
+            </div>
+            <div className="md:col-span-6">
+              <label className={labelCls} htmlFor="ps-scope-in">
+                Escopo incluído (uma linha por item)
+              </label>
+              <textarea
+                id="ps-scope-in"
+                name="scope_included"
+                rows={4}
+                defaultValue={project.scope_included ?? ""}
+                placeholder={"Layout responsivo\nIntegração com pagamento"}
+                className={`${inputCls} resize-y`}
+              />
+            </div>
+            <div className="md:col-span-6">
+              <label className={labelCls} htmlFor="ps-scope-out">
+                Fora do escopo (uma linha por item)
+              </label>
+              <textarea
+                id="ps-scope-out"
+                name="scope_excluded"
+                rows={4}
+                defaultValue={project.scope_excluded ?? ""}
+                placeholder={"App mobile nativo\nMigração de dados legados"}
+                className={`${inputCls} resize-y`}
+              />
+            </div>
+            <div className="md:col-span-8">
+              <label className={labelCls} htmlFor="ps-next-action">
+                Próxima ação necessária do cliente
+              </label>
+              <input
+                id="ps-next-action"
+                name="next_action"
+                defaultValue={project.next_action ?? ""}
+                placeholder="ex: Aprovar o layout da home"
+                className={inputCls}
+              />
+            </div>
+            <div className="md:col-span-4">
+              <label className={labelCls} htmlFor="ps-next-action-date">
+                Prazo (opcional)
+              </label>
+              <input
+                id="ps-next-action-date"
+                name="next_action_date"
+                type="date"
+                defaultValue={project.next_action_date ?? ""}
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <button type="submit" className={btnPrimary}>
+            Salvar configurações do portal
+          </button>
+        </form>
+      </Card>
+
       {/* Novo marco */}
       <Card className="mb-6 p-4">
         <form
@@ -141,7 +239,7 @@ export default async function ProjetoPage({
           className="grid grid-cols-1 gap-3 md:grid-cols-12"
         >
           <input type="hidden" name="project_id" value={project.id} />
-          <div className="md:col-span-4">
+          <div className="md:col-span-3">
             <label className={labelCls} htmlFor="nm-title">
               Novo marco
             </label>
@@ -153,7 +251,25 @@ export default async function ProjetoPage({
               className={inputCls}
             />
           </div>
-          <div className="md:col-span-6">
+          <div className="md:col-span-3">
+            <label className={labelCls} htmlFor="nm-phase">
+              Fase
+            </label>
+            <select
+              id="nm-phase"
+              name="phase"
+              defaultValue=""
+              className={inputCls}
+            >
+              <option value="">— sem fase</option>
+              {PROJECT_PHASES.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-4">
             <label className={labelCls} htmlFor="nm-desc">
               Descrição (o cliente vê isso quando publicado)
             </label>
@@ -191,6 +307,9 @@ export default async function ProjetoPage({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{m.title}</p>
+                        {m.phase && (
+                          <Badge tone="info">{PHASE_LABEL[m.phase]}</Badge>
+                        )}
                         {m.published ? (
                           <Badge tone="green">
                             publicado · {dateTimeBR(m.published_at)}
@@ -298,80 +417,30 @@ export default async function ProjetoPage({
         </ul>
       )}
 
-      {/* Anexar asset */}
+      {/* Anexar arquivos */}
       <Card className="mt-6 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-          Anexar asset
+          Anexar arquivos
         </h2>
-        <form
+        <MultiFileUpload
           action={addAsset}
-          className="grid grid-cols-1 gap-3 md:grid-cols-12"
-        >
-          <input type="hidden" name="project_id" value={project.id} />
-          <div className="md:col-span-3">
-            <label className={labelCls} htmlFor="as-file">
-              Arquivo
-            </label>
-            <input
-              id="as-file"
-              name="file"
-              type="file"
-              className={`${inputCls} file:mr-2 file:rounded file:border-0 file:bg-primary-soft file:px-2 file:py-0.5 file:text-xs file:font-semibold file:text-primary-dark`}
-            />
-          </div>
-          <div className="md:col-span-3">
-            <label className={labelCls} htmlFor="as-url">
-              …ou link externo
-            </label>
-            <input
-              id="as-url"
-              name="external_url"
-              type="url"
-              placeholder="https://…"
-              className={inputCls}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className={labelCls} htmlFor="as-title">
-              Título
-            </label>
-            <input
-              id="as-title"
-              name="title"
-              placeholder="opcional"
-              className={inputCls}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className={labelCls} htmlFor="as-milestone">
-              Marco
-            </label>
-            <select id="as-milestone" name="milestone_id" className={inputCls}>
-              <option value="">— sem marco (não vai ao portal)</option>
-              {milestones.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end md:col-span-2">
-            <button type="submit" className={`${btnSecondary} w-full`}>
-              <Paperclip size={15} /> Anexar
-            </button>
-          </div>
-        </form>
-        <p className="mt-2 text-xs text-muted">
-          Regra do portal: um asset só aparece pro cliente se estiver ligado a
-          um marco <strong>publicado</strong>.
+          projectId={project.id}
+          milestones={milestones.map((m) => ({ id: m.id, title: m.title }))}
+        />
+        <p className="mt-3 text-xs text-muted">
+          Regra do portal: um arquivo ligado a um marco só aparece pro cliente
+          se o marco estiver <strong>publicado</strong>. Sem marco, o arquivo
+          vira um entregável do projeto (contrato, protótipo, nota fiscal…) e
+          aparece direto na seção &quot;Arquivos do projeto&quot; do portal.
         </p>
       </Card>
 
-      {/* Assets soltos */}
+      {/* Arquivos do projeto (sem marco) */}
       {(assetsByMilestone.get(null) ?? []).length > 0 && (
         <Card className="mt-4 p-4">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-            Assets sem marco (internos)
+            Arquivos do projeto (aparecem na seção &quot;Arquivos&quot; do
+            portal)
           </h3>
           <ul className="flex flex-wrap gap-2">
             {(assetsByMilestone.get(null) ?? []).map((a) => (

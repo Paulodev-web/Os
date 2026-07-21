@@ -54,6 +54,15 @@ export interface Client {
 
 export type ProjectStatus = "em_andamento" | "entregue" | "pausado" | "arquivado";
 
+export type MilestonePhase =
+  | "descoberta"
+  | "escopo"
+  | "design"
+  | "desenvolvimento"
+  | "qa"
+  | "entrega"
+  | "pos_entrega";
+
 export interface Project {
   id: string;
   client_id: string;
@@ -61,6 +70,12 @@ export interface Project {
   status: ProjectStatus;
   description: string | null;
   started_at: string | null;
+  current_phase: MilestonePhase | null;
+  current_phase_target_date: string | null;
+  scope_included: string | null;
+  scope_excluded: string | null;
+  next_action: string | null;
+  next_action_date: string | null;
   created_at: string;
 }
 
@@ -71,6 +86,7 @@ export interface Milestone {
   description: string | null;
   published: boolean;
   published_at: string | null;
+  phase: MilestonePhase | null;
   created_from_meeting_id: string | null;
   created_at: string;
 }

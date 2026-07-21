@@ -1,15 +1,28 @@
 import Image from "next/image";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { CheckCircle2, Paperclip, ExternalLink } from "lucide-react";
+import {
+  CheckCircle2,
+  Paperclip,
+  ExternalLink,
+  Check,
+  X,
+  AlertTriangle,
+  MessageCircle,
+} from "lucide-react";
+import { Badge } from "@/components/ui";
+import { PhaseStepper } from "@/components/portal/phase-stepper";
+import { AssetGallery } from "@/components/portal/asset-gallery";
 import { publicAssetUrl } from "@/lib/storage";
 import { PROJECT_STATUS_LABEL } from "@/lib/labels";
+import { PHASE_LABEL, type ProjectPhaseKey } from "@/lib/phases";
 import { dateBR, dateTimeBR } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 /* Portal público de acompanhamento.
    Fonte de dados: RPC os_pessoal.portal_do_cliente(token) — por construção,
-   só retorna marcos publicados e assets ligados a marco publicado. */
+   só retorna marcos publicados e assets ligados a marco publicado (ou
+   entregáveis do projeto sem marco, ver "arquivos"). */
 
 interface PortalAsset {
   tipo: string;
@@ -21,6 +34,7 @@ interface PortalMarco {
   titulo: string;
   descricao: string | null;
   publicado_em: string;
+  fase: string | null;
   assets: PortalAsset[];
 }
 interface PortalProjeto {
@@ -29,7 +43,14 @@ interface PortalProjeto {
   status: string;
   descricao: string | null;
   iniciado_em: string | null;
+  fase_atual: string | null;
+  fase_atual_previsao: string | null;
+  escopo_incluido: string | null;
+  escopo_excluido: string | null;
+  proxima_acao: string | null;
+  proxima_acao_data: string | null;
   marcos: PortalMarco[];
+  arquivos: PortalAsset[];
 }
 interface PortalData {
   cliente: string;
@@ -49,10 +70,21 @@ async function fetchPortal(token: string): Promise<PortalData | null> {
   return data as PortalData;
 }
 
+function splitLines(text: string | null): string[] {
+  if (!text) return [];
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function assetHref(asset: PortalAsset): string | null {
+  if (asset.storage_path) return publicAssetUrl(asset.storage_path);
+  return asset.url_externa;
+}
+
 function AssetChip({ asset }: { asset: PortalAsset }) {
-  const href = asset.storage_path
-    ? publicAssetUrl(asset.storage_path)
-    : asset.url_externa;
+  const href = assetHref(asset);
   if (!href) return null;
 
   if (asset.tipo === "imagem" && asset.storage_path) {
@@ -85,6 +117,45 @@ function AssetChip({ asset }: { asset: PortalAsset }) {
   );
 }
 
+function ScopeList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: "positive" | "negative";
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide ${
+          tone === "positive" ? "text-primary-dark" : "text-muted"
+        }`}
+      >
+        {title}
+      </p>
+      <ul className="mt-2 space-y-1.5 text-sm">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2">
+            {tone === "positive" ? (
+              <Check size={14} className="mt-0.5 shrink-0 text-primary" />
+            ) : (
+              <X size={14} className="mt-0.5 shrink-0 text-muted" />
+            )}
+            <span
+              className={tone === "positive" ? "text-foreground" : "text-muted"}
+            >
+              {item}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default async function PortalPage({
   params,
 }: {
@@ -92,6 +163,7 @@ export default async function PortalPage({
 }) {
   const { token } = await params;
   const portal = await fetchPortal(token);
+  const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
   if (!portal) {
     return (
@@ -115,7 +187,7 @@ export default async function PortalPage({
     <main className="min-h-screen bg-background">
       {/* Header claro com logo verde (regra da marca) */}
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-5">
+        <div className="mx-auto flex max-w-4xl items-center gap-3 px-6 py-5">
           <Image
             src="/logo/devpaulo.png"
             alt="devpaulo"
@@ -134,7 +206,7 @@ export default async function PortalPage({
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl px-6 py-10">
+      <div className="mx-auto max-w-4xl px-6 py-10">
         <h1 className="text-3xl font-black tracking-tight">
           Olá, {portal.cliente} 👋
         </h1>
@@ -149,73 +221,164 @@ export default async function PortalPage({
           </p>
         )}
 
-        {portal.projetos.map((projeto) => (
-          <section key={projeto.id} className="mt-10">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-xl font-black tracking-tight">
-                {projeto.nome}
-              </h2>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  projeto.status === "entregue"
-                    ? "bg-primary-soft text-primary-dark"
-                    : "bg-background text-muted border border-border"
-                }`}
-              >
-                {PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status}
-              </span>
-            </div>
-            {projeto.iniciado_em && (
-              <p className="mt-1 text-xs text-muted">
-                Início: {dateBR(projeto.iniciado_em)}
-              </p>
-            )}
+        {portal.projetos.map((projeto) => {
+          const scopeIncluded = splitLines(projeto.escopo_incluido);
+          const scopeExcluded = splitLines(projeto.escopo_excluido);
 
-            {projeto.marcos.length === 0 ? (
-              <p className="mt-4 rounded-xl border border-dashed border-border bg-surface p-5 text-sm text-muted">
-                As primeiras etapas deste projeto vão aparecer aqui assim que
-                forem concluídas.
-              </p>
-            ) : (
-              <ol className="relative mt-6 space-y-6 border-l-2 border-primary-soft pl-6">
-                {projeto.marcos.map((marco, i) => (
-                  <li key={i} className="relative">
-                    <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full bg-surface">
-                      <CheckCircle2
-                        size={18}
-                        className="text-primary"
-                        strokeWidth={2.4}
-                      />
-                    </span>
-                    <div className="rounded-xl border border-border bg-surface p-4 shadow-card">
-                      <p className="text-xs font-semibold text-primary-dark">
-                        {dateTimeBR(marco.publicado_em)}
+          return (
+            <section key={projeto.id} className="mt-10">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-black tracking-tight">
+                  {projeto.nome}
+                </h2>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    projeto.status === "entregue"
+                      ? "bg-primary-soft text-primary-dark"
+                      : "bg-background text-muted border border-border"
+                  }`}
+                >
+                  {PROJECT_STATUS_LABEL[projeto.status] ?? projeto.status}
+                </span>
+              </div>
+              {projeto.iniciado_em && (
+                <p className="mt-1 text-xs text-muted">
+                  Início: {dateBR(projeto.iniciado_em)}
+                </p>
+              )}
+
+              {/* Visão geral — stepper de fases */}
+              <PhaseStepper
+                currentPhase={projeto.fase_atual}
+                targetDate={projeto.fase_atual_previsao}
+              />
+
+              {/* Escopo do projeto */}
+              {(scopeIncluded.length > 0 || scopeExcluded.length > 0) && (
+                <div className="mt-6 grid gap-5 rounded-xl border border-border bg-surface p-4 shadow-card sm:grid-cols-2">
+                  <ScopeList
+                    title="Incluído no escopo"
+                    items={scopeIncluded}
+                    tone="positive"
+                  />
+                  <ScopeList
+                    title="Fora do escopo"
+                    items={scopeExcluded}
+                    tone="negative"
+                  />
+                </div>
+              )}
+
+              {/* Próxima ação necessária do cliente */}
+              {projeto.proxima_acao && (
+                <div className="mt-6 flex items-start gap-3 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3">
+                  <AlertTriangle
+                    size={18}
+                    className="mt-0.5 shrink-0 text-warn"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-warn">
+                      Ação necessária da sua parte
+                    </p>
+                    <p className="mt-0.5 text-sm text-foreground">
+                      {projeto.proxima_acao}
+                    </p>
+                    {projeto.proxima_acao_data && (
+                      <p className="mt-1 text-xs text-muted">
+                        Prazo: {dateBR(projeto.proxima_acao_data)}
                       </p>
-                      <h3 className="mt-0.5 font-semibold">{marco.titulo}</h3>
-                      {marco.descricao && (
-                        <p className="mt-1 text-sm text-muted">
-                          {marco.descricao}
-                        </p>
-                      )}
-                      {marco.assets.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {marco.assets.map((a, j) => (
-                            <AssetChip key={j} asset={a} />
-                          ))}
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline de marcos */}
+              {projeto.marcos.length === 0 ? (
+                <p className="mt-6 rounded-xl border border-dashed border-border bg-surface p-5 text-sm text-muted">
+                  As primeiras etapas deste projeto vão aparecer aqui assim que
+                  forem concluídas.
+                </p>
+              ) : (
+                <ol className="relative mt-6 space-y-6 border-l-2 border-primary-soft pl-6">
+                  {projeto.marcos.map((marco, i) => {
+                    const imageAssets = marco.assets.filter(
+                      (a) => a.tipo === "imagem" && a.storage_path
+                    );
+                    const otherAssets = marco.assets.filter(
+                      (a) => !(a.tipo === "imagem" && a.storage_path)
+                    );
+                    return (
+                      <li key={i} className="relative">
+                        <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full bg-surface">
+                          <CheckCircle2
+                            size={18}
+                            className="text-primary"
+                            strokeWidth={2.4}
+                          />
+                        </span>
+                        <div className="rounded-xl border border-border bg-surface p-4 shadow-card">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-xs font-semibold text-primary-dark">
+                              {dateTimeBR(marco.publicado_em)}
+                            </p>
+                            {marco.fase && (
+                              <Badge tone="info">
+                                {PHASE_LABEL[marco.fase as ProjectPhaseKey] ??
+                                  marco.fase}
+                              </Badge>
+                            )}
+                          </div>
+                          <h3 className="mt-0.5 font-semibold">
+                            {marco.titulo}
+                          </h3>
+                          {marco.descricao && (
+                            <p className="mt-1 text-sm text-muted">
+                              {marco.descricao}
+                            </p>
+                          )}
+                          {imageAssets.length > 0 && (
+                            <AssetGallery
+                              images={imageAssets.map((a) => ({
+                                src: assetHref(a)!,
+                                alt: a.titulo ?? marco.titulo,
+                              }))}
+                            />
+                          )}
+                          {otherAssets.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {otherAssets.map((a, j) => (
+                                <AssetChip key={j} asset={a} />
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        ))}
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+
+              {/* Arquivos e entregáveis do projeto */}
+              {(projeto.arquivos ?? []).length > 0 && (
+                <div className="mt-6">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    Arquivos do projeto
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(projeto.arquivos ?? []).map((a, j) => (
+                      <AssetChip key={j} asset={a} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
 
       {/* Footer grafite — wordmark branco (regra: logo verde só em fundo claro) */}
       <footer className="mt-16 bg-graphite">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-1 px-6 py-8 text-center">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-6 py-8 text-center">
           <span className="text-lg font-black tracking-tight text-white">
             devpaulo
             <span className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-primary-soft" />
@@ -223,6 +386,18 @@ export default async function PortalPage({
           <p className="text-xs font-light text-white/50">
             Software sob medida — contato@devpaulo.com.br
           </p>
+          {whatsapp && (
+            <a
+              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(
+                `Oi! Sou ${portal.cliente} e vim pelo portal de acompanhamento.`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark"
+            >
+              <MessageCircle size={16} /> Falar no WhatsApp
+            </a>
+          )}
         </div>
       </footer>
     </main>
