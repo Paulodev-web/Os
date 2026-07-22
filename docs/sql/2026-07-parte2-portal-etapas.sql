@@ -29,7 +29,6 @@ alter table os_pessoal.project_milestones
 -- documentada aqui, ajuste este script antes de aplicar. Mantém o invariante
 -- de segurança original: só retorna marcos publicados e assets ligados a eles
 -- (ou, agora, assets do projeto sem marco — ver seção "arquivos" abaixo).
--- Projetos com status 'arquivado' NÃO aparecem no portal.
 create or replace function os_pessoal.portal_do_cliente(p_token text)
 returns jsonb
 language plpgsql
@@ -107,7 +106,6 @@ begin
       )
       from os_pessoal.projects p
       where p.client_id = c.id
-        and p.status <> 'arquivado'
     ), '[]'::jsonb)
   )
   into v_result

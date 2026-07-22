@@ -183,10 +183,6 @@ export default async function PortalPage({
     );
   }
 
-  // Defesa: RPC também deve filtrar, mas o front não lista arquivados
-  // caso a função no banco ainda não tenha sido atualizada.
-  const projetos = portal.projetos.filter((p) => p.status !== "arquivado");
-
   return (
     <main className="min-h-screen bg-background">
       {/* Header claro com logo verde (regra da marca) */}
@@ -219,13 +215,13 @@ export default async function PortalPage({
           precisar perguntar.
         </p>
 
-        {projetos.length === 0 && (
+        {portal.projetos.length === 0 && (
           <p className="mt-10 rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-muted">
             Seu acompanhamento vai aparecer aqui em breve.
           </p>
         )}
 
-        {projetos.map((projeto) => {
+        {portal.projetos.map((projeto) => {
           const scopeIncluded = splitLines(projeto.escopo_incluido);
           const scopeExcluded = splitLines(projeto.escopo_excluido);
 

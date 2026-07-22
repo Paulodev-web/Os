@@ -33,7 +33,6 @@ import {
   deleteProject,
   setMilestonePublished,
   updateMilestone,
-  updateProjectBasics,
   updateProjectNextAction,
   updateProjectPhase,
   updateProjectScope,
@@ -144,61 +143,6 @@ export default async function ProjetoPage({
           </div>
         }
       />
-
-      {/* Dados básicos — nome, descrição e data de início */}
-      <Card className="mb-6 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-          Dados do projeto
-        </h2>
-        <form
-          action={updateProjectBasics}
-          className="grid grid-cols-1 gap-3 md:grid-cols-12"
-        >
-          <input type="hidden" name="id" value={project.id} />
-          <input type="hidden" name="client_slug" value={project.clients.slug} />
-          <div className="md:col-span-5">
-            <label className={labelCls} htmlFor="pb-name">
-              Nome
-            </label>
-            <input
-              id="pb-name"
-              name="name"
-              required
-              defaultValue={project.name}
-              className={inputCls}
-            />
-          </div>
-          <div className="md:col-span-4">
-            <label className={labelCls} htmlFor="pb-desc">
-              Descrição
-            </label>
-            <input
-              id="pb-desc"
-              name="description"
-              defaultValue={project.description ?? ""}
-              placeholder="Escopo em uma linha"
-              className={inputCls}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className={labelCls} htmlFor="pb-start">
-              Início
-            </label>
-            <input
-              id="pb-start"
-              name="started_at"
-              type="date"
-              defaultValue={project.started_at ?? ""}
-              className={inputCls}
-            />
-          </div>
-          <div className="flex items-end md:col-span-1">
-            <button type="submit" className={`${btnSecondary} w-full`}>
-              Salvar
-            </button>
-          </div>
-        </form>
-      </Card>
 
       {/* Fase do projeto — mesma visão que o cliente vê no portal */}
       <Card className="mb-6 p-4">

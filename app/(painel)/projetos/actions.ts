@@ -8,29 +8,6 @@ import { PORTAL_BUCKET } from "@/lib/storage";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-export async function updateProjectBasics(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  const clientSlug = String(formData.get("client_slug") ?? "");
-  const name = String(formData.get("name") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const startedAt = String(formData.get("started_at") ?? "").trim();
-  if (!id || !name) return;
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("projects")
-    .update({
-      name,
-      description: description || null,
-      started_at: startedAt || null,
-    })
-    .eq("id", id);
-
-  revalidatePath(`/projetos/${id}`);
-  if (clientSlug) revalidatePath(`/clientes/${clientSlug}`);
-  if (error) redirect(`/projetos/${id}?erro=${encodeURIComponent(error.message)}`);
-}
-
 export async function updateProjectStatus(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "");
@@ -152,21 +129,6 @@ export async function deleteMilestone(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-
-  // Limpa assets do Storage ligados ao marco antes de apagar as rows —
-  // senão os objetos ficam órfãos no bucket.
-  const { data: milestoneAssets } = await supabase
-    .from("project_assets")
-    .select("storage_path")
-    .eq("milestone_id", id);
-  const paths = (milestoneAssets ?? [])
-    .map((a) => a.storage_path)
-    .filter((p): p is string => Boolean(p));
-  if (paths.length > 0) {
-    await supabase.storage.from(PORTAL_BUCKET).remove(paths);
-  }
-  await supabase.from("project_assets").delete().eq("milestone_id", id);
-
   const { error } = await supabase
     .from("project_milestones")
     .delete()
