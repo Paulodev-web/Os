@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { claudeJSON, SYSTEM_DEVPAULO } from "@/lib/claude";
+import { geminiJSON, SYSTEM_DEVPAULO } from "@/lib/gemini";
 import { todayISO } from "@/lib/format";
 import type { Meeting, MeetingPrep } from "@/lib/database.types";
 
@@ -102,7 +102,7 @@ export function descreveReuniao(meeting: Meeting): string {
 /** Gera e salva o prep de uma reunião. Lança erro se a IA falhar. */
 export async function gerarPrepReuniao(db: Db, meeting: Meeting): Promise<void> {
   const contexto = await contextoDaEntidade(db, meeting);
-  const prep = await claudeJSON<MeetingPrep>({
+  const prep = await geminiJSON<MeetingPrep>({
     system: SYSTEM_DEVPAULO,
     maxTokens: 1500,
     prompt: `Hoje é ${todayISO()}. Prepare o Paulo para a reunião abaixo.

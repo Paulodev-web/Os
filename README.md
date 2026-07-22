@@ -4,7 +4,7 @@ Painel único do Paulo: devpaulo.com.br (clientes, portal, comercial, financeiro
 iService (decisões, roadmap, caixa isolado) e Pessoal (treino, dieta, coach IA).
 
 - **Produção:** https://os-pessoal.vercel.app (futuro: painel.devpaulo.com.br)
-- **Stack:** Next.js 16 (Turbopack) · Tailwind 4 · Supabase (schema `os_pessoal`, RLS deny-by-default) · Claude API
+- **Stack:** Next.js 16 (Turbopack) · Tailwind 4 · Supabase (schema `os_pessoal`, RLS deny-by-default) · Gemini API (thinking off)
 - **Plano completo:** `../../PLANO.md` na raiz da pasta devpaulo.com.br
 
 ## Rodar local
@@ -21,8 +21,8 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | chave anon (RLS protege tudo) |
 | `ADMIN_LOGIN_EMAIL` | sim | email fixo do login (só pede senha) |
-| `ANTHROPIC_API_KEY` | p/ IA | prep, ata, briefing narrado, coach, captura rápida — sem ela tudo degrada com aviso |
-| `CLAUDE_MODEL` | não | default `claude-sonnet-5` |
+| `GEMINI_API_KEY` | p/ IA | prep, ata, briefing narrado, coach, agente central — sem ela tudo degrada com aviso |
+| `GEMINI_MODEL` | não | default `gemini-2.5-flash` (thinking desligado) |
 | `SUPABASE_SERVICE_ROLE_KEY` | p/ cron | briefing/prep automáticos do cron diário |
 | `CRON_SECRET` | p/ cron | a Vercel manda `Authorization: Bearer <CRON_SECRET>` |
 

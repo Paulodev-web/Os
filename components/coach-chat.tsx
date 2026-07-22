@@ -117,7 +117,7 @@ export function CoachChat({ iaOn }: { iaOn: boolean }) {
         <div className="mx-4 mb-2 flex items-start gap-2 rounded-lg bg-warn-soft px-3 py-2 text-xs font-semibold text-warn">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           {!iaOn
-            ? "IA não configurada — adicione ANTHROPIC_API_KEY nas variáveis de ambiente."
+            ? "IA não configurada — adicione GEMINI_API_KEY nas variáveis de ambiente."
             : error}
         </div>
       )}

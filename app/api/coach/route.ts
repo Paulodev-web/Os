@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { claudeConfigurado, CLAUDE_MODEL, SYSTEM_DEVPAULO } from "@/lib/claude";
+import { geminiConfigurado, geminiChat, SYSTEM_DEVPAULO } from "@/lib/gemini";
 import { todayISO, num } from "@/lib/format";
 
 /* Coach de treino/dieta — o único chat do painel.
@@ -226,11 +225,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "não autenticado" }, { status: 401 });
   }
 
-  if (!claudeConfigurado()) {
+  if (!geminiConfigurado()) {
     return NextResponse.json(
       {
         error:
-          "IA não configurada — adicione ANTHROPIC_API_KEY nas variáveis de ambiente.",
+          "IA não configurada — adicione GEMINI_API_KEY nas variáveis de ambiente.",
       },
       { status: 503 }
     );
@@ -258,10 +257,7 @@ export async function POST(request: Request) {
 
   try {
     const contexto = await montarContexto(supabase);
-    const client = new Anthropic();
-    const msg = await client.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 1000,
+    const reply = await geminiChat({
       system: `${SYSTEM_DEVPAULO}
 
 Você está no papel de coach de treino e dieta do Paulo. Regras:
@@ -273,13 +269,8 @@ Você está no papel de coach de treino e dieta do Paulo. Regras:
 DADOS REAIS DO PAULO:
 ${contexto}`,
       messages,
+      maxTokens: 1000,
     });
-
-    const reply = msg.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
 
     return NextResponse.json({ reply });
   } catch (e) {

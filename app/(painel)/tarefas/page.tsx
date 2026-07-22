@@ -1,27 +1,27 @@
-import { Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Space, TaskWithSpace } from "@/lib/database.types";
 import {
   Card,
   PageHeader,
-  Badge,
   EmptyState,
   inputCls,
   labelCls,
   btnPrimary,
 } from "@/components/ui";
-import { dateBR, isOverdue } from "@/lib/format";
-import { createTask, deleteTask, toggleTask } from "./actions";
+import { TaskRow } from "@/components/tarefas/task-row";
+import {
+  PERIODO_LABEL,
+  periodoRange,
+  periodoValido,
+  type Periodo,
+} from "@/lib/format";
+import { createTask, deleteTask, toggleTask, updateTask } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const PRIORITY_ORDER = { alta: 0, media: 1, baixa: 2 } as const;
-
-const PRIORITY_TONE = {
-  alta: "danger",
-  media: "warn",
-  baixa: "neutral",
-} as const;
 
 const SPACE_LABEL: Record<string, string> = {
   devpaulo: "devpaulo",
@@ -29,7 +29,17 @@ const SPACE_LABEL: Record<string, string> = {
   pessoal: "Pessoal",
 };
 
-export default async function TarefasPage() {
+const PERIODOS: Periodo[] = ["dia", "semana", "mes", "ano"];
+
+export default async function TarefasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ periodo?: string }>;
+}) {
+  const { periodo: periodoParam } = await searchParams;
+  const periodo = periodoValido(periodoParam);
+  const { inicio, fim } = periodoRange(periodo);
+
   const supabase = await createClient();
 
   const [{ data: tasksData, error }, { data: spacesData }] = await Promise.all([
@@ -40,7 +50,7 @@ export default async function TarefasPage() {
   if (error) throw new Error(`Erro ao carregar tarefas: ${error.message}`);
 
   const spaces = (spacesData ?? []) as Space[];
-  const tasks = ((tasksData ?? []) as unknown as TaskWithSpace[]).sort(
+  const todas = ((tasksData ?? []) as unknown as TaskWithSpace[]).sort(
     (a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1;
       const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
@@ -49,6 +59,14 @@ export default async function TarefasPage() {
     }
   );
 
+  // Tarefa entra na janela se o prazo cai em [inicio, fim] OU se não tem prazo
+  // (sem-data sempre visível — evita sumir tarefa por falta de data).
+  const tasks = todas.filter((t) => {
+    if (!t.due_date) return true;
+    const d = t.due_date.slice(0, 10);
+    return d >= inicio && d <= fim;
+  });
+
   const pending = tasks.filter((t) => !t.done);
   const done = tasks.filter((t) => t.done);
 
@@ -56,8 +74,25 @@ export default async function TarefasPage() {
     <>
       <PageHeader
         title="Tarefas"
-        subtitle={`${pending.length} pendente${pending.length === 1 ? "" : "s"} · ${done.length} concluída${done.length === 1 ? "" : "s"}`}
+        subtitle={`${pending.length} pendente${pending.length === 1 ? "" : "s"} · ${done.length} concluída${done.length === 1 ? "" : "s"} · ${PERIODO_LABEL[periodo].toLowerCase()}`}
       />
+
+      {/* Filtro por período */}
+      <div className="mb-4 inline-flex rounded-lg border border-border bg-surface p-1">
+        {PERIODOS.map((p) => (
+          <Link
+            key={p}
+            href={`/tarefas?periodo=${p}`}
+            className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+              p === periodo
+                ? "bg-primary text-white"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            {PERIODO_LABEL[p]}
+          </Link>
+        ))}
+      </div>
 
       {/* Nova tarefa */}
       <Card className="mb-6 p-4">
@@ -133,85 +168,21 @@ export default async function TarefasPage() {
 
       {tasks.length === 0 ? (
         <EmptyState
-          title="Nenhuma tarefa por aqui"
-          hint="Crie a primeira tarefa no formulário acima."
+          title="Nenhuma tarefa nesse período"
+          hint="Troque o filtro acima ou crie uma tarefa nova. Tarefas sem prazo aparecem em qualquer período."
         />
       ) : (
         <ul className="space-y-2">
-          {tasks.map((task) => {
-            const overdue = isOverdue(task.due_date) && !task.done;
-            return (
-              <li key={task.id}>
-                <Card
-                  className={`group flex items-start gap-3 p-4 ${task.done ? "opacity-55" : ""}`}
-                >
-                  <form action={toggleTask} className="pt-0.5">
-                    <input type="hidden" name="id" value={task.id} />
-                    <input
-                      type="hidden"
-                      name="done"
-                      value={String(task.done)}
-                    />
-                    <button
-                      type="submit"
-                      aria-label={
-                        task.done ? "Reabrir tarefa" : "Concluir tarefa"
-                      }
-                      className={`flex h-5 w-5 items-center justify-center rounded-md border text-xs font-bold transition ${
-                        task.done
-                          ? "border-primary bg-primary text-white"
-                          : "border-border hover:border-primary"
-                      }`}
-                    >
-                      {task.done ? "✓" : ""}
-                    </button>
-                  </form>
-
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`font-semibold ${task.done ? "line-through" : ""}`}
-                    >
-                      {task.title}
-                    </p>
-                    {task.note && (
-                      <p className="mt-0.5 text-sm text-muted">{task.note}</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <Badge tone={PRIORITY_TONE[task.priority]}>
-                        {task.priority}
-                      </Badge>
-                      <Badge>{task.category}</Badge>
-                      {task.spaces && (
-                        <Badge tone="graphite">
-                          {SPACE_LABEL[task.spaces.slug] ?? task.spaces.slug}
-                        </Badge>
-                      )}
-                      {task.legacy_client_slug && (
-                        <Badge tone="green">{task.legacy_client_slug}</Badge>
-                      )}
-                      <span
-                        className={`ml-1 text-xs ${overdue ? "font-semibold text-danger" : "text-muted"}`}
-                      >
-                        {overdue ? "atrasada · " : ""}
-                        {dateBR(task.due_date)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <form action={deleteTask}>
-                    <input type="hidden" name="id" value={task.id} />
-                    <button
-                      type="submit"
-                      aria-label="Excluir tarefa"
-                      className="rounded-lg p-1.5 text-muted/40 opacity-0 transition group-hover:opacity-100 hover:bg-danger-soft hover:text-danger"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </form>
-                </Card>
-              </li>
-            );
-          })}
+          {tasks.map((task) => (
+            <li key={task.id}>
+              <TaskRow
+                task={task}
+                onToggle={toggleTask}
+                onUpdate={updateTask}
+                onDelete={deleteTask}
+              />
+            </li>
+          ))}
         </ul>
       )}
     </>

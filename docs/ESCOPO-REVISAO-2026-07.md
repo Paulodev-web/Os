@@ -135,5 +135,20 @@ Feedback específico do Paulo, agora concreto:
 2. ~~Prep/ata/briefing seguem em Claude?~~ → **tudo migra pra Gemini**, `lib/claude.ts` aposentado.
 3. ~~Migrar histórico do ReuniCheck?~~ → **começa do zero**.
 4. ~~Logos não usados?~~ → **removidos** de `devpaulo-main/public/logo/` (feito, não commitado).
+5. ~~CRUD total do portal?~~ → **sim**, fechar todas as lacunas (ver addendum 22/07 abaixo).
+6. ~~Agente central: alcance limitado a um subconjunto de tabelas?~~ → **não, qualquer módulo** (ver addendum 22/07).
+7. ~~Agente central tem memória entre conversas?~~ → **sim, nova capability** (ver addendum 22/07).
 
 Escopo pronto pra virar plano de implementação. Único ponto que ainda depende do Paulo antes de eu começar a escrever código: detalhar, se quiser, algo mais específico sobre a UX do kanban comercial (seção 5, item 2) além de "buscar inspiração" — do contrário eu decido a direção na hora de implementar.
+
+---
+
+## Addendum — 22/07/2026
+
+Depois de usar o painel em produção, mais três decisões. Detalhe técnico completo no plano de execução (`C:\Users\conta\.claude\plans\siga-em-frente-e-purrfect-wombat.md`, seções "Revisão de 22/07/2026" e "Auditoria de CRUD") — não duplicado aqui.
+
+**5. CRUD total do portal.** A frente 1 original (seção 1 acima) só cobria os bugs de criar marco/upload de arquivo — não o CRUD completo. Hoje não dá pra editar ou excluir um cliente, nem editar nome/descrição de um projeto depois de criado (excluir projeto/marco já existia no código, mas com uma falha sutil de RLS que fazia parecer que não funcionava — detalhe no plano de execução). **Confirmado:** fechar essa lacuna em Clientes/Projetos/Marcos, com o mesmo cuidado espalhado pro resto do sistema onde a mesma lacuna apareceu (tarefas, reuniões, propostas, financeiro — auditoria completa no plano de execução).
+
+**6. Agente central — alcance total.** O desenho original (seção 3.1 acima) já previa "liberdade total" de escrita, mas a lista de tools cobria só um subconjunto de tabelas, com clientes/projetos em só-leitura. **Confirmado:** o agente precisa alcançar qualquer módulo do sistema — CRUD completo em tudo, incluindo treino/dieta e iService (que não estavam no escopo original do agente). O Coach continua exatamente como está (item 3 acima, sem mudança) — só o Agente central ganha esse alcance.
+
+**7. Memória do agente — capability nova.** O Paulo pode pedir explicitamente pro agente guardar uma informação ("lembra disso", "guarda que eu prefiro X") — fica salva e é consultada **automaticamente** em toda resposta futura, sem precisar repetir o contexto a cada conversa. Detalhe técnico completo (schema, tools, injeção no prompt) no plano de execução, Frente 3.1.

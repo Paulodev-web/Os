@@ -45,6 +45,66 @@ export async function updateClientNotes(formData: FormData) {
   revalidatePath(`/clientes/${slug}`);
 }
 
+export async function updateClient(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const segment = String(formData.get("segment") ?? "").trim();
+  const contact = String(formData.get("contact") ?? "").trim();
+  if (!id || !name || !slug) return;
+
+  // Não altera slug nem portal_token — evita quebrar links do portal já enviados.
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("clients")
+    .update({ name, segment: segment || null, contact: contact || null })
+    .eq("id", id)
+    .select("id");
+
+  revalidatePath(`/clientes/${slug}`);
+  revalidatePath("/clientes");
+  if (error) redirect(`/clientes/${slug}?erro=${encodeURIComponent(error.message)}`);
+  if (!data?.length)
+    redirect(
+      `/clientes/${slug}?erro=${encodeURIComponent("Nada foi salvo — provável falta de permissão (RLS).")}`
+    );
+}
+
+export async function deleteClient(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  if (!id || !slug) return;
+
+  const supabase = await createClient();
+
+  // Guard: não deixa apagar cliente com projeto ainda vinculado (evita
+  // órfãos e apagões acidentais de histórico).
+  const { count } = await supabase
+    .from("projects")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", id);
+  if ((count ?? 0) > 0) {
+    redirect(
+      `/clientes/${slug}?erro=${encodeURIComponent(
+        "Apague ou arquive os projetos deste cliente antes de excluí-lo."
+      )}`
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("clients")
+    .delete()
+    .eq("id", id)
+    .select("id");
+  if (error) redirect(`/clientes/${slug}?erro=${encodeURIComponent(error.message)}`);
+  if (!data?.length)
+    redirect(
+      `/clientes/${slug}?erro=${encodeURIComponent("Nada foi excluído — provável falta de permissão (RLS).")}`
+    );
+  revalidatePath("/clientes");
+  redirect("/clientes");
+}
+
 export async function createProject(formData: FormData) {
   const clientId = String(formData.get("client_id") ?? "");
   const clientSlug = String(formData.get("client_slug") ?? "");

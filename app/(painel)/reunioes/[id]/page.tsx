@@ -11,7 +11,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { claudeConfigurado } from "@/lib/claude";
+import { geminiConfigurado } from "@/lib/gemini";
 import type { Meeting, Task } from "@/lib/database.types";
 import {
   Card,
@@ -27,6 +27,7 @@ import { MEETING_TYPE_LABEL, MEETING_STATUS_LABEL } from "@/lib/labels";
 import { dateTimeBR, dateBR } from "@/lib/format";
 import {
   deleteMeeting,
+  updateMeeting,
   updateMeetingStatus,
   gerarPrep,
   estruturarReuniao,
@@ -41,6 +42,14 @@ const STATUS_TONE = {
   realizada: "green",
   cancelada: "neutral",
 } as const;
+
+/** timestamptz → "YYYY-MM-DDTHH:mm" no fuso de SP (valor de datetime-local) */
+function toLocalInput(ts: string): string {
+  const sp = new Date(ts).toLocaleString("sv-SE", {
+    timeZone: "America/Sao_Paulo",
+  });
+  return sp.replace(" ", "T").slice(0, 16);
+}
 
 async function relatedLabel(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -116,7 +125,7 @@ export default async function ReuniaoPage({
     title: string;
     published: boolean;
   } | null;
-  const iaOn = claudeConfigurado();
+  const iaOn = geminiConfigurado();
   const notes = meeting.structured_notes;
 
   return (
@@ -197,6 +206,68 @@ export default async function ReuniaoPage({
         cliente.
       </p>
 
+      {/* ===== Editar dados (reagendar sem perder prep/ata) ===== */}
+      <details className="mb-5">
+        <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-primary">
+          Editar dados da reunião (título, tipo, data/hora)
+        </summary>
+        <Card className="mt-3 p-4">
+          <form
+            action={updateMeeting}
+            className="grid grid-cols-1 gap-3 md:grid-cols-12"
+          >
+            <input type="hidden" name="id" value={meeting.id} />
+            <div className="md:col-span-5">
+              <label className={labelCls} htmlFor="me-title">
+                Título
+              </label>
+              <input
+                id="me-title"
+                name="title"
+                required
+                defaultValue={meeting.title}
+                className={inputCls}
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className={labelCls} htmlFor="me-type">
+                Tipo
+              </label>
+              <select
+                id="me-type"
+                name="type"
+                defaultValue={meeting.type}
+                className={inputCls}
+              >
+                {Object.entries(MEETING_TYPE_LABEL).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-3">
+              <label className={labelCls} htmlFor="me-when">
+                Data e hora
+              </label>
+              <input
+                id="me-when"
+                name="scheduled_at"
+                type="datetime-local"
+                required
+                defaultValue={toLocalInput(meeting.scheduled_at)}
+                className={inputCls}
+              />
+            </div>
+            <div className="flex items-end md:col-span-1">
+              <button type="submit" className={`${btnSecondary} w-full`}>
+                Salvar
+              </button>
+            </div>
+          </form>
+        </Card>
+      </details>
+
       {/* ===== Prep ===== */}
       <Card className="mb-5 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -218,7 +289,7 @@ export default async function ReuniaoPage({
 
         {!iaOn && (
           <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs font-semibold text-warn">
-            IA não configurada — adicione ANTHROPIC_API_KEY nas variáveis de
+            IA não configurada — adicione GEMINI_API_KEY nas variáveis de
             ambiente para gerar prep e ata.
           </p>
         )}

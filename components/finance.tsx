@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Plus,
   Trash2,
+  Pencil,
   ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
@@ -14,9 +15,14 @@ import {
   inputCls,
   labelCls,
   btnPrimary,
+  btnSecondary,
 } from "@/components/ui";
 import { brl, dateBR, todayISO } from "@/lib/format";
-import { createEntry, deleteEntry } from "@/app/(painel)/financeiro/actions";
+import {
+  createEntry,
+  deleteEntry,
+  updateEntry,
+} from "@/app/(painel)/financeiro/actions";
 
 /* Blocos compartilhados das 3 telas de financeiro
    (devpaulo / consolidado / iService — esta última sempre isolada). */
@@ -249,61 +255,113 @@ export function EntriesList({
     <ul className="space-y-2">
       {entries.map((e) => (
         <li key={e.id}>
-          <Card className="flex flex-wrap items-center gap-3 p-3">
-            <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-black ${
-                e.type === "entrada"
-                  ? "bg-primary-soft text-primary-dark"
-                  : "bg-danger-soft text-danger"
-              }`}
-            >
-              {e.type === "entrada" ? "+" : "−"}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">
-                {e.description || e.category}
-              </p>
-              <p className="text-xs text-muted">
-                {dateBR(e.date)} · {e.category}
-              </p>
-            </div>
-            {e.transfer_group_id && (
-              <Badge tone="info">
-                <ArrowLeftRight size={11} /> transferência
-              </Badge>
-            )}
-            {showOrigin && (
-              <Badge tone={e.origin === "devpaulo" ? "green" : "graphite"}>
-                {ORIGIN_LABEL[e.origin]}
-              </Badge>
-            )}
-            <p
-              className={`text-sm font-black tabular-nums ${
-                e.type === "entrada" ? "text-primary-dark" : "text-danger"
-              }`}
-            >
-              {e.type === "entrada" ? "+" : "−"}
-              {brl(Number(e.amount))}
-            </p>
-            <form action={deleteEntry}>
-              <input type="hidden" name="id" value={e.id} />
-              <button
-                type="submit"
-                aria-label={
-                  e.transfer_group_id
-                    ? "Excluir transferência (par inteiro)"
-                    : "Excluir lançamento"
-                }
-                title={
-                  e.transfer_group_id
-                    ? "Exclui as duas pernas da transferência"
-                    : undefined
-                }
-                className="rounded p-1.5 text-muted/40 hover:bg-danger-soft hover:text-danger"
+          <Card className="p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-black ${
+                  e.type === "entrada"
+                    ? "bg-primary-soft text-primary-dark"
+                    : "bg-danger-soft text-danger"
+                }`}
               >
-                <Trash2 size={14} />
-              </button>
-            </form>
+                {e.type === "entrada" ? "+" : "−"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">
+                  {e.description || e.category}
+                </p>
+                <p className="text-xs text-muted">
+                  {dateBR(e.date)} · {e.category}
+                </p>
+              </div>
+              {e.transfer_group_id && (
+                <Badge tone="info">
+                  <ArrowLeftRight size={11} /> transferência
+                </Badge>
+              )}
+              {showOrigin && (
+                <Badge tone={e.origin === "devpaulo" ? "green" : "graphite"}>
+                  {ORIGIN_LABEL[e.origin]}
+                </Badge>
+              )}
+              <p
+                className={`text-sm font-black tabular-nums ${
+                  e.type === "entrada" ? "text-primary-dark" : "text-danger"
+                }`}
+              >
+                {e.type === "entrada" ? "+" : "−"}
+                {brl(Number(e.amount))}
+              </p>
+              <form action={deleteEntry}>
+                <input type="hidden" name="id" value={e.id} />
+                <button
+                  type="submit"
+                  aria-label={
+                    e.transfer_group_id
+                      ? "Excluir transferência (par inteiro)"
+                      : "Excluir lançamento"
+                  }
+                  title={
+                    e.transfer_group_id
+                      ? "Exclui as duas pernas da transferência"
+                      : undefined
+                  }
+                  className="rounded p-1.5 text-muted/40 hover:bg-danger-soft hover:text-danger"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </form>
+            </div>
+
+            {/* Transferência não se edita aqui (quebraria o par atômico) */}
+            {!e.transfer_group_id && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-primary">
+                  <Pencil size={11} className="mr-1 inline" />
+                  editar
+                </summary>
+                <form
+                  action={updateEntry}
+                  className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-12"
+                >
+                  <input type="hidden" name="id" value={e.id} />
+                  <input
+                    name="category"
+                    required
+                    defaultValue={e.category}
+                    placeholder="Categoria"
+                    className={`${inputCls} col-span-2 md:col-span-3`}
+                  />
+                  <input
+                    name="description"
+                    defaultValue={e.description ?? ""}
+                    placeholder="Descrição"
+                    className={`${inputCls} col-span-2 md:col-span-4`}
+                  />
+                  <input
+                    name="amount"
+                    required
+                    inputMode="decimal"
+                    defaultValue={String(e.amount)}
+                    placeholder="Valor"
+                    className={`${inputCls} md:col-span-2`}
+                  />
+                  <input
+                    name="date"
+                    type="date"
+                    required
+                    defaultValue={e.date.slice(0, 10)}
+                    className={`${inputCls} md:col-span-2`}
+                  />
+                  <button
+                    type="submit"
+                    className={`${btnSecondary} col-span-2 md:col-span-1`}
+                  >
+                    Salvar
+                  </button>
+                </form>
+              </details>
+            )}
           </Card>
         </li>
       ))}

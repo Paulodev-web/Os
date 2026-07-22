@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { adminConfigurado, createAdminClient } from "@/lib/supabase/admin";
 import { executarBriefingDiario } from "@/lib/briefing";
 import { prepararReunioesDoDia } from "@/lib/prep";
-import { claudeConfigurado } from "@/lib/claude";
+import { geminiConfigurado } from "@/lib/gemini";
 
 /* Cron da Vercel (vercel.json) — roda 1x/dia às 06:00 de São Paulo.
    Plano Hobby = 1 cron/dia, então este handler acumula as rotinas diárias:
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   try {
     const admin = createAdminClient();
     const resultado = await executarBriefingDiario(admin);
-    const preps = claudeConfigurado() ? await prepararReunioesDoDia(admin) : 0;
+    const preps = geminiConfigurado() ? await prepararReunioesDoDia(admin) : 0;
     return NextResponse.json({ ok: true, ...resultado, preps_gerados: preps });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro desconhecido";

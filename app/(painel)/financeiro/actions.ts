@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/format";
+import { inserirLancamento, atualizarLancamento } from "@/lib/finance";
 
-const ORIGINS = ["devpaulo", "pessoal", "iservice"];
 const FINANCE_PATHS = [
   "/financeiro",
   "/financeiro/consolidado",
@@ -24,25 +24,40 @@ export async function createEntry(formData: FormData) {
   const amount = Number(String(formData.get("amount") ?? "").replace(",", "."));
   const date = String(formData.get("date") ?? "") || todayISO();
 
-  if (
-    !ORIGINS.includes(origin) ||
-    !["entrada", "saida"].includes(type) ||
-    !category ||
-    !Number.isFinite(amount) ||
-    amount <= 0
-  )
-    return;
-
   const supabase = await createClient();
-  await supabase.from("finance_entries").insert({
+  const res = await inserirLancamento(supabase, {
     origin,
     type,
     category,
-    description: description || null,
+    description,
     amount,
     date,
   });
   revalidateFinance();
+  if (!res.ok) redirect(`/financeiro?erro=${encodeURIComponent(res.erro)}`);
+}
+
+/* Editar lançamento: nunca uma perna de transferência sozinha (quebraria o
+   par atômico). Origem/tipo não são editáveis aqui — pra trocar isso, apaga e
+   recria (mesma filosofia do par atômico). */
+export async function updateEntry(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const category = String(formData.get("category") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const amount = Number(String(formData.get("amount") ?? "").replace(",", "."));
+  const date = String(formData.get("date") ?? "");
+  if (!id || !date) return;
+
+  const supabase = await createClient();
+  const res = await atualizarLancamento(supabase, {
+    id,
+    category,
+    description,
+    amount,
+    date,
+  });
+  revalidateFinance();
+  if (!res.ok) redirect(`/financeiro?erro=${encodeURIComponent(res.erro)}`);
 }
 
 /* Transferência devpaulo ↔ pessoal — SEMPRE em par atômico via RPC

@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { FinanceEntry } from "@/lib/database.types";
 import { PageHeader, Stat } from "@/components/ui";
@@ -16,9 +17,9 @@ export const dynamic = "force-dynamic";
 export default async function FinanceiroDevpauloPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>;
+  searchParams: Promise<{ mes?: string; erro?: string }>;
 }) {
-  const { mes: mesParam } = await searchParams;
+  const { mes: mesParam, erro } = await searchParams;
   const mes = mesValido(mesParam);
   const { inicio, fim } = rangeDoMes(mes);
 
@@ -42,6 +43,13 @@ export default async function FinanceiroDevpauloPage({
         subtitle="Caixa do estúdio (transferências pro pessoal aparecem como saída)"
         action={<MonthNav basePath="/financeiro" mes={mes} />}
       />
+
+      {erro && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          {erro}
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-3 gap-3">
         <Stat label="Entradas" value={brl(resumo.entradas)} tone="positive" />

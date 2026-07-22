@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus, FolderOpen, ChevronRight } from "lucide-react";
+import { Plus, FolderOpen, ChevronRight, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Client,
@@ -19,9 +19,15 @@ import {
   btnSecondary,
 } from "@/components/ui";
 import { CopyPortalLink } from "@/components/copy-link";
+import { DeleteClientForm } from "@/components/clientes/delete-client-form";
 import { PROJECT_STATUS_LABEL } from "@/lib/labels";
 import { brl, dateBR } from "@/lib/format";
-import { createProject, updateClientNotes } from "../actions";
+import {
+  createProject,
+  deleteClient,
+  updateClient,
+  updateClientNotes,
+} from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +47,13 @@ const PROPOSAL_TONE: Record<string, "green" | "neutral" | "warn" | "danger"> = {
 
 export default async function ClientePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ erro?: string }>;
 }) {
   const { slug } = await params;
+  const { erro } = await searchParams;
   const supabase = await createClient();
 
   const { data: clientData } = await supabase
@@ -93,8 +102,70 @@ export default async function ClientePage({
         action={<CopyPortalLink token={client.portal_token} />}
       />
 
+      {erro && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          {erro}
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {/* Dados do cliente */}
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+              Dados do cliente
+            </h2>
+            <Card className="p-4">
+              <form
+                action={updateClient}
+                className="grid grid-cols-1 gap-3 md:grid-cols-12"
+              >
+                <input type="hidden" name="id" value={client.id} />
+                <input type="hidden" name="slug" value={client.slug} />
+                <div className="md:col-span-5">
+                  <label className={labelCls} htmlFor="cl-name">
+                    Nome
+                  </label>
+                  <input
+                    id="cl-name"
+                    name="name"
+                    required
+                    defaultValue={client.name}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <label className={labelCls} htmlFor="cl-segment">
+                    Segmento
+                  </label>
+                  <input
+                    id="cl-segment"
+                    name="segment"
+                    defaultValue={client.segment ?? ""}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <label className={labelCls} htmlFor="cl-contact">
+                    Contato
+                  </label>
+                  <input
+                    id="cl-contact"
+                    name="contact"
+                    defaultValue={client.contact ?? ""}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex items-end md:col-span-1">
+                  <button type="submit" className={`${btnSecondary} w-full`}>
+                    Salvar
+                  </button>
+                </div>
+              </form>
+            </Card>
+          </section>
+
           {/* Projetos */}
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
@@ -199,6 +270,24 @@ export default async function ClientePage({
               </ul>
             </section>
           )}
+
+          {/* Zona de risco */}
+          <Card className="border-danger/20 p-4">
+            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
+              Zona de risco
+            </h2>
+            <p className="mb-3 text-xs text-muted">
+              Exclui o cliente do painel. Só funciona se não houver projetos —
+              apague ou arquive os projetos antes. Não altera o slug nem o link
+              do portal enquanto o cliente existir.
+            </p>
+            <DeleteClientForm
+              action={deleteClient}
+              clientId={client.id}
+              clientSlug={client.slug}
+              clientName={client.name}
+            />
+          </Card>
         </div>
 
         <div className="space-y-6">

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { claudeConfigurado, claudeText, SYSTEM_DEVPAULO } from "@/lib/claude";
+import { geminiConfigurado, geminiText, SYSTEM_DEVPAULO } from "@/lib/gemini";
 import { todayISO } from "@/lib/format";
 import type { BriefingSummary, Lead, Task } from "@/lib/database.types";
 
@@ -152,7 +152,7 @@ function narrativaFallback(s: BriefingSummary): string {
 }
 
 async function narrativaIA(s: BriefingSummary): Promise<string> {
-  const texto = await claudeText({
+  const texto = await geminiText({
     system: SYSTEM_DEVPAULO,
     maxTokens: 400,
     prompt: `Hoje é ${todayISO()}. Escreva o briefing matinal do Paulo em 2 a 4 frases, tom direto de sócio estratégico, sem saudação genérica e sem buzzword. Aponte a prioridade nº 1 do dia. Dados do dia (JSON):
@@ -322,7 +322,7 @@ export async function executarBriefingDiario(db: Db): Promise<{
 
   let narrative: string;
   let generatedBy: "ia" | "fallback" = "fallback";
-  if (claudeConfigurado()) {
+  if (geminiConfigurado()) {
     try {
       narrative = await narrativaIA(summary);
       generatedBy = "ia";

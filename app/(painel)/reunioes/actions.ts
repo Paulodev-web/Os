@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { claudeJSON, SYSTEM_DEVPAULO } from "@/lib/claude";
+import { geminiJSON, SYSTEM_DEVPAULO } from "@/lib/gemini";
 import {
   contextoDaEntidade,
   descreveReuniao,
@@ -57,6 +57,30 @@ export async function createMeeting(formData: FormData) {
   });
   revalidatePath("/reunioes");
   revalidatePath("/hoje");
+}
+
+export async function updateMeeting(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const type = String(formData.get("type") ?? "");
+  const scheduled = String(formData.get("scheduled_at") ?? "");
+  if (!id || !title || !scheduled) return;
+
+  // datetime-local vem sem fuso; Paulo opera em America/Sao_Paulo (UTC-3 fixo)
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("meetings")
+    .update({ title, type, scheduled_at: `${scheduled}:00-03:00` })
+    .eq("id", id)
+    .select("id");
+  revalidatePath(`/reunioes/${id}`);
+  revalidatePath("/reunioes");
+  revalidatePath("/hoje");
+  if (error) redirect(`/reunioes/${id}?erro=${encodeURIComponent(error.message)}`);
+  if (!data?.length)
+    redirect(
+      `/reunioes/${id}?erro=${encodeURIComponent("Nada foi atualizado — provável falta de permissão (RLS).")}`
+    );
 }
 
 export async function updateMeetingStatus(formData: FormData) {
@@ -154,7 +178,7 @@ export async function estruturarReuniao(formData: FormData) {
   let erro: string | null = null;
   try {
     const contexto = await contextoDaEntidade(supabase, meeting);
-    const notes = await claudeJSON<StructuredNotes>({
+    const notes = await geminiJSON<StructuredNotes>({
       system: SYSTEM_DEVPAULO,
       maxTokens: 2500,
       prompt: `Hoje é ${todayISO()}. Estruture as anotações brutas da reunião abaixo.

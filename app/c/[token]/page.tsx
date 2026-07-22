@@ -165,6 +165,12 @@ export default async function PortalPage({
   const portal = await fetchPortal(token);
   const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
+  // Defesa: a RPC portal_do_cliente já deve filtrar arquivados, mas o front
+  // não lista projetos arquivados caso a função no banco ainda não tenha sido
+  // atualizada (ver docs/sql/2026-07-parte2-portal-etapas.sql).
+  const projetos =
+    portal?.projetos.filter((p) => p.status !== "arquivado") ?? [];
+
   if (!portal) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center">
@@ -215,13 +221,13 @@ export default async function PortalPage({
           precisar perguntar.
         </p>
 
-        {portal.projetos.length === 0 && (
+        {projetos.length === 0 && (
           <p className="mt-10 rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-muted">
             Seu acompanhamento vai aparecer aqui em breve.
           </p>
         )}
 
-        {portal.projetos.map((projeto) => {
+        {projetos.map((projeto) => {
           const scopeIncluded = splitLines(projeto.escopo_incluido);
           const scopeExcluded = splitLines(projeto.escopo_excluido);
 

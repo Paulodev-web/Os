@@ -8,6 +8,7 @@ import {
   updateLead,
   deleteLead,
   createProposal,
+  updateProposal,
   updateProposalStatus,
   deleteProposal,
 } from "@/app/(painel)/comercial/actions";
@@ -37,53 +38,91 @@ export const PROPOSAL_TONE = {
 
 function ProposalRow({ proposal }: { proposal: Proposal }) {
   return (
-    <li className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1 text-xs">
-      <span className="min-w-0 flex-1 truncate font-semibold">
-        {proposal.doc_url ? (
-          <a
-            href={proposal.doc_url}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-primary hover:underline"
+    <li className="rounded-lg border border-border bg-background px-2 py-1 text-xs">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate font-semibold">
+          {proposal.doc_url ? (
+            <a
+              href={proposal.doc_url}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-primary hover:underline"
+            >
+              {proposal.title}
+            </a>
+          ) : (
+            proposal.title
+          )}
+        </span>
+        <span className="font-black tabular-nums">
+          {brl(Number(proposal.value))}
+        </span>
+        <form action={updateProposalStatus} className="flex items-center gap-1">
+          <input type="hidden" name="id" value={proposal.id} />
+          <select
+            name="status"
+            defaultValue={proposal.status}
+            className="rounded border border-border bg-white px-1 py-0.5 text-[11px]"
           >
-            {proposal.title}
-          </a>
-        ) : (
-          proposal.title
-        )}
-      </span>
-      <span className="font-black tabular-nums">
-        {brl(Number(proposal.value))}
-      </span>
-      <form action={updateProposalStatus} className="flex items-center gap-1">
-        <input type="hidden" name="id" value={proposal.id} />
-        <select
-          name="status"
-          defaultValue={proposal.status}
-          className="rounded border border-border bg-white px-1 py-0.5 text-[11px]"
-        >
-          {Object.entries(PROPOSAL_STATUS_LABEL).map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          aria-label="Atualizar status da proposta"
-          className="rounded p-0.5 text-muted/50 hover:text-primary"
-        >
-          <Check size={11} />
-        </button>
-        <button
-          type="submit"
-          formAction={deleteProposal}
-          aria-label="Excluir proposta"
-          className="rounded p-0.5 text-muted/40 hover:text-danger"
-        >
-          <Trash2 size={11} />
-        </button>
-      </form>
+            {Object.entries(PROPOSAL_STATUS_LABEL).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            aria-label="Atualizar status da proposta"
+            className="rounded p-0.5 text-muted/50 hover:text-primary"
+          >
+            <Check size={11} />
+          </button>
+          <button
+            type="submit"
+            formAction={deleteProposal}
+            aria-label="Excluir proposta"
+            className="rounded p-0.5 text-muted/40 hover:text-danger"
+          >
+            <Trash2 size={11} />
+          </button>
+        </form>
+      </div>
+
+      <details className="mt-1">
+        <summary className="cursor-pointer text-[11px] font-semibold text-muted/70 hover:text-primary">
+          <Pencil size={9} className="mr-0.5 inline" />
+          editar título/valor
+        </summary>
+        <form action={updateProposal} className="mt-1 flex flex-wrap items-end gap-1">
+          <input type="hidden" name="id" value={proposal.id} />
+          <input
+            name="title"
+            required
+            defaultValue={proposal.title}
+            className="min-w-0 flex-1 rounded border border-border bg-white px-1 py-0.5 text-[11px]"
+          />
+          <input
+            name="value"
+            required
+            inputMode="decimal"
+            defaultValue={String(proposal.value)}
+            className="w-16 rounded border border-border bg-white px-1 py-0.5 text-[11px]"
+          />
+          <input
+            name="doc_url"
+            type="url"
+            placeholder="link (opcional)"
+            defaultValue={proposal.doc_url ?? ""}
+            className="min-w-0 flex-1 rounded border border-border bg-white px-1 py-0.5 text-[11px]"
+          />
+          <button
+            type="submit"
+            className="rounded bg-primary px-1.5 py-0.5 text-[11px] font-semibold text-white hover:bg-primary-dark"
+          >
+            Salvar
+          </button>
+        </form>
+      </details>
     </li>
   );
 }

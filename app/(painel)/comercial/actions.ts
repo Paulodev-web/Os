@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 const STAGES = [
@@ -95,6 +96,23 @@ export async function createProposal(formData: FormData) {
     doc_url: docUrl || null,
   });
   revalidatePath("/comercial");
+}
+
+export async function updateProposal(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const value = Number(String(formData.get("value") ?? "0").replace(",", "."));
+  const notes = String(formData.get("notes") ?? "").trim();
+  const docUrl = String(formData.get("doc_url") ?? "").trim();
+  if (!id || !title || !Number.isFinite(value) || value < 0) return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("proposals")
+    .update({ title, value, notes: notes || null, doc_url: docUrl || null })
+    .eq("id", id);
+  revalidatePath("/comercial");
+  if (error) redirect(`/comercial?erro=${encodeURIComponent(error.message)}`);
 }
 
 export async function updateProposalStatus(formData: FormData) {

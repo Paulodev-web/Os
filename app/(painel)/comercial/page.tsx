@@ -1,4 +1,4 @@
-import { Plus, Check, Trash2, FileText } from "lucide-react";
+import { Plus, Check, Trash2, FileText, Pencil, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Lead, LeadStage, Proposal } from "@/lib/database.types";
 import {
@@ -22,6 +22,7 @@ import {
 import {
   createLead,
   createProposal,
+  updateProposal,
   updateProposalStatus,
   deleteProposal,
 } from "./actions";
@@ -37,7 +38,12 @@ const STAGES: LeadStage[] = [
   "perdido",
 ];
 
-export default async function ComercialPage() {
+export default async function ComercialPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erro?: string }>;
+}) {
+  const { erro } = await searchParams;
   const supabase = await createClient();
 
   const [{ data: leadsData, error }, { data: proposalsData }] =
@@ -90,6 +96,13 @@ export default async function ComercialPage() {
         title="Comercial"
         subtitle="Pipeline de leads e propostas — mover de estágio persiste na hora"
       />
+
+      {erro && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          {erro}
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-3 gap-3">
         <Stat label="Leads ativos" value={activeLeads} />
@@ -294,65 +307,108 @@ export default async function ComercialPage() {
           <ul className="space-y-2">
             {unlinkedProposals.map((p) => (
               <li key={p.id}>
-                <Card className="flex flex-wrap items-center gap-3 p-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">
-                      {p.doc_url ? (
-                        <a
-                          href={p.doc_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:text-primary hover:underline"
-                        >
-                          {p.title}
-                        </a>
-                      ) : (
-                        p.title
-                      )}
+                <Card className="p-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">
+                        {p.doc_url ? (
+                          <a
+                            href={p.doc_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-primary hover:underline"
+                          >
+                            {p.title}
+                          </a>
+                        ) : (
+                          p.title
+                        )}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {p.clients?.name ?? p.leads?.name ?? "sem vínculo"}
+                        {p.sent_at ? ` · enviada em ${dateBR(p.sent_at)}` : ""}
+                      </p>
+                    </div>
+                    <p className="text-base font-black tabular-nums">
+                      {brl(Number(p.value))}
                     </p>
-                    <p className="text-xs text-muted">
-                      {p.clients?.name ?? p.leads?.name ?? "sem vínculo"}
-                      {p.sent_at ? ` · enviada em ${dateBR(p.sent_at)}` : ""}
-                    </p>
+                    <Badge tone={PROPOSAL_TONE[p.status]}>
+                      {PROPOSAL_STATUS_LABEL[p.status]}
+                    </Badge>
+                    <form
+                      action={updateProposalStatus}
+                      className="flex items-center gap-1.5"
+                    >
+                      <input type="hidden" name="id" value={p.id} />
+                      <select
+                        name="status"
+                        defaultValue={p.status}
+                        className={`${inputCls} !w-auto !px-2 !py-1 !text-xs`}
+                      >
+                        {Object.entries(PROPOSAL_STATUS_LABEL).map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        aria-label="Atualizar status"
+                        className="flex h-7 w-8 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-dark"
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        type="submit"
+                        formAction={deleteProposal}
+                        aria-label="Excluir proposta"
+                        className="rounded-lg p-1.5 text-muted/40 hover:bg-danger-soft hover:text-danger"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </form>
                   </div>
-                  <p className="text-base font-black tabular-nums">
-                    {brl(Number(p.value))}
-                  </p>
-                  <Badge tone={PROPOSAL_TONE[p.status]}>
-                    {PROPOSAL_STATUS_LABEL[p.status]}
-                  </Badge>
-                  <form
-                    action={updateProposalStatus}
-                    className="flex items-center gap-1.5"
-                  >
-                    <input type="hidden" name="id" value={p.id} />
-                    <select
-                      name="status"
-                      defaultValue={p.status}
-                      className={`${inputCls} !w-auto !px-2 !py-1 !text-xs`}
+
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-primary">
+                      <Pencil size={11} className="mr-1 inline" />
+                      editar título / valor / link
+                    </summary>
+                    <form
+                      action={updateProposal}
+                      className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-12"
                     >
-                      {Object.entries(PROPOSAL_STATUS_LABEL).map(([v, l]) => (
-                        <option key={v} value={v}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="submit"
-                      aria-label="Atualizar status"
-                      className="flex h-7 w-8 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-dark"
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      type="submit"
-                      formAction={deleteProposal}
-                      aria-label="Excluir proposta"
-                      className="rounded-lg p-1.5 text-muted/40 hover:bg-danger-soft hover:text-danger"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </form>
+                      <input type="hidden" name="id" value={p.id} />
+                      <input
+                        name="title"
+                        required
+                        defaultValue={p.title}
+                        placeholder="Título"
+                        className={`${inputCls} md:col-span-5`}
+                      />
+                      <input
+                        name="value"
+                        required
+                        inputMode="decimal"
+                        defaultValue={String(p.value)}
+                        placeholder="Valor"
+                        className={`${inputCls} md:col-span-2`}
+                      />
+                      <input
+                        name="doc_url"
+                        type="url"
+                        defaultValue={p.doc_url ?? ""}
+                        placeholder="Link (opcional)"
+                        className={`${inputCls} md:col-span-4`}
+                      />
+                      <button
+                        type="submit"
+                        className={`${btnSecondary} md:col-span-1`}
+                      >
+                        Salvar
+                      </button>
+                    </form>
+                  </details>
                 </Card>
               </li>
             ))}

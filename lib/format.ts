@@ -44,3 +44,44 @@ export function num(value: number, digits = 0): string {
     maximumFractionDigits: digits,
   });
 }
+
+export type Periodo = "dia" | "semana" | "mes" | "ano";
+
+export const PERIODO_LABEL: Record<Periodo, string> = {
+  dia: "Dia",
+  semana: "Semana",
+  mes: "Mês",
+  ano: "Ano",
+};
+
+export function periodoValido(p: string | undefined): Periodo {
+  return p === "dia" || p === "semana" || p === "mes" || p === "ano"
+    ? p
+    : "semana";
+}
+
+/** Janela [inicio, fim] (YYYY-MM-DD, inclusiva) do período ancorado em `ref`. */
+export function periodoRange(
+  periodo: Periodo,
+  ref = todayISO()
+): { inicio: string; fim: string } {
+  const [y, m, d] = ref.split("-").map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d, 12)); // meio-dia UTC evita virada de dia
+  if (periodo === "dia") return { inicio: ref, fim: ref };
+  if (periodo === "semana") {
+    const dow = base.getUTCDay();
+    const seg = new Date(base);
+    seg.setUTCDate(base.getUTCDate() - ((dow + 6) % 7));
+    const dom = new Date(seg);
+    dom.setUTCDate(seg.getUTCDate() + 6);
+    return {
+      inicio: seg.toISOString().slice(0, 10),
+      fim: dom.toISOString().slice(0, 10),
+    };
+  }
+  if (periodo === "mes") {
+    const fim = new Date(Date.UTC(y, m, 0));
+    return { inicio: `${ref.slice(0, 7)}-01`, fim: fim.toISOString().slice(0, 10) };
+  }
+  return { inicio: `${y}-01-01`, fim: `${y}-12-31` };
+}
