@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GeminiTool } from "@/lib/gemini";
 import { inserirLancamento, atualizarLancamento } from "@/lib/finance";
 import { todayISO } from "@/lib/format";
+import { cascadeDeleteProjects } from "@/lib/delete-helpers";
 
 /* Fábrica de ferramentas do Agente central.
    REGRA DE SEGURANÇA: sempre recebe o client autenticado da sessão do Paulo
@@ -614,19 +615,22 @@ export function buildAgentTools(db: Db): GeminiTool[] {
     ),
     t(
       "delete_client",
-      "Exclui um cliente. Só funciona se não houver projetos vinculados.",
+      "Exclui um cliente e, em cascata, todos os projetos (com marcos/arquivos), propostas e tarefas vinculadas a ele. Irreversível.",
       S.obj({ id: S.str("id do cliente") }, ["id"]),
       async (a) => {
         const id = str(a, "id");
         if (!id) return { erro: "id é obrigatório" };
-        const { count } = await db
+        const { data: projectRows } = await db
           .from("projects")
-          .select("id", { count: "exact", head: true })
+          .select("id")
           .eq("client_id", id);
-        if ((count ?? 0) > 0)
-          return {
-            erro: "cliente tem projetos vinculados — apague/arquive os projetos antes.",
-          };
+        const projectIds = (projectRows ?? []).map((p: { id: string }) => p.id);
+        await cascadeDeleteProjects(db, projectIds);
+        await db.from("proposals").delete().eq("client_id", id);
+        await db.from("tasks").delete().eq("related_entity_id", id);
+        if (projectIds.length > 0) {
+          await db.from("tasks").delete().in("related_entity_id", projectIds);
+        }
         const { data, error } = await db
           .from("clients")
           .delete()

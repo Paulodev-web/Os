@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { cascadeDeleteProjects } from "@/lib/delete-helpers";
 
 function slugify(name: string): string {
   return name
@@ -77,18 +78,21 @@ export async function deleteClient(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Guard: não deixa apagar cliente com projeto ainda vinculado (evita
-  // órfãos e apagões acidentais de histórico).
-  const { count } = await supabase
+  // Exclusão em cascata: leva junto todos os projetos do cliente (com seus
+  // marcos e arquivos, inclusive no Storage), propostas e tarefas abertas
+  // vinculadas a ele. Antes isso era bloqueado por um guard — agora resolve
+  // tudo de uma vez, sem exigir que o Paulo apague projeto por projeto.
+  const { data: projectRows } = await supabase
     .from("projects")
-    .select("id", { count: "exact", head: true })
+    .select("id")
     .eq("client_id", id);
-  if ((count ?? 0) > 0) {
-    redirect(
-      `/clientes/${slug}?erro=${encodeURIComponent(
-        "Apague ou arquive os projetos deste cliente antes de excluí-lo."
-      )}`
-    );
+  const projectIds = (projectRows ?? []).map((p) => p.id as string);
+  await cascadeDeleteProjects(supabase, projectIds);
+
+  await supabase.from("proposals").delete().eq("client_id", id);
+  await supabase.from("tasks").delete().eq("related_entity_id", id);
+  if (projectIds.length > 0) {
+    await supabase.from("tasks").delete().in("related_entity_id", projectIds);
   }
 
   const { data, error } = await supabase

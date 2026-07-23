@@ -20,6 +20,7 @@ import {
 } from "@/components/ui";
 import { CopyPortalLink } from "@/components/copy-link";
 import { DeleteClientForm } from "@/components/clientes/delete-client-form";
+import { DeleteProjectForm } from "@/components/projetos/delete-project-form";
 import { PROJECT_STATUS_LABEL } from "@/lib/labels";
 import { brl, dateBR } from "@/lib/format";
 import {
@@ -28,6 +29,7 @@ import {
   updateClient,
   updateClientNotes,
 } from "../actions";
+import { deleteProject } from "@/app/(painel)/projetos/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -180,8 +182,11 @@ export default async function ClientePage({
               <ul className="space-y-2">
                 {projects.map((p) => (
                   <li key={p.id}>
-                    <Link href={`/projetos/${p.id}`}>
-                      <Card className="flex items-center gap-3 p-4 transition hover:border-primary/40 hover:shadow-pop">
+                    <Card className="flex items-center gap-3 p-4 transition hover:border-primary/40 hover:shadow-pop">
+                      <Link
+                        href={`/projetos/${p.id}`}
+                        className="flex min-w-0 flex-1 items-center gap-3"
+                      >
                         <FolderOpen
                           size={18}
                           className="shrink-0 text-primary"
@@ -198,8 +203,15 @@ export default async function ClientePage({
                           {PROJECT_STATUS_LABEL[p.status]}
                         </Badge>
                         <ChevronRight size={16} className="text-muted/50" />
-                      </Card>
-                    </Link>
+                      </Link>
+                      <DeleteProjectForm
+                        action={deleteProject}
+                        projectId={p.id}
+                        clientSlug={client.slug}
+                        projectName={p.name}
+                        compact
+                      />
+                    </Card>
                   </li>
                 ))}
               </ul>
@@ -277,9 +289,9 @@ export default async function ClientePage({
               Zona de risco
             </h2>
             <p className="mb-3 text-xs text-muted">
-              Exclui o cliente do painel. Só funciona se não houver projetos —
-              apague ou arquive os projetos antes. Não altera o slug nem o link
-              do portal enquanto o cliente existir.
+              Exclui o cliente e, em cascata, todos os projetos dele (com
+              marcos e arquivos, inclusive no Storage), propostas e tarefas
+              vinculadas. Não pode ser desfeito.
             </p>
             <DeleteClientForm
               action={deleteClient}

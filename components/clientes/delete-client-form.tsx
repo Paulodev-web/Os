@@ -19,7 +19,7 @@ export function DeleteClientForm({
       action={action}
       onSubmit={(e) => {
         const ok = window.confirm(
-          `Excluir o cliente "${clientName}"? Essa ação não pode ser desfeita.`
+          `Excluir o cliente "${clientName}" e TODOS os projetos, marcos, arquivos, propostas e tarefas vinculados a ele? Essa ação não pode ser desfeita.`
         );
         if (!ok) e.preventDefault();
       }}
